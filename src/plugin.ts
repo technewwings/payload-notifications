@@ -35,9 +35,10 @@ const registerTaskDefinitions = (
   tasks: NotificationQueueTask[],
 ): Array<{ slug: string }> => {
   const existing = new Set(getExistingTaskSlugs(config))
-  const nextTasks = config.jobs && 'tasks' in config.jobs && Array.isArray(config.jobs.tasks)
-    ? [...config.jobs.tasks]
-    : []
+  const nextTasks =
+    config.jobs && 'tasks' in config.jobs && Array.isArray(config.jobs.tasks)
+      ? [...config.jobs.tasks]
+      : []
 
   for (const task of tasks) {
     if (existing.has(task.slug)) continue

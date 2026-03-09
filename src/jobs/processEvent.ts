@@ -41,8 +41,7 @@ export const assertNotificationEvent = (value: unknown): NotificationEvent => {
       value.classification === 'marketing' || value.classification === 'transactional'
         ? value.classification
         : undefined,
-    idempotencyKey:
-      typeof value.idempotencyKey === 'string' ? value.idempotencyKey : undefined,
+    idempotencyKey: typeof value.idempotencyKey === 'string' ? value.idempotencyKey : undefined,
   }
 }
 

@@ -5,6 +5,7 @@ import type {
   NotificationQueueTask,
   NotificationsPluginOptions,
 } from './types'
+import type { TaskConfig, TaskHandler, TaskHandlerArgs, TaskHandlerResult } from 'payload'
 import {
   NotificationsCollection,
   type NotificationsCollectionOverrides,
@@ -21,10 +22,7 @@ const hasCollectionSlug = (collections: CollectionConfig[] = [], slug: string): 
   return collections.some((collection) => collection.slug === slug)
 }
 
-type RegisteredTask = {
-  slug: string
-  handler?: (args: { input?: unknown }) => Promise<unknown>
-}
+type RegisteredTask = Pick<TaskConfig<any>, 'slug' | 'handler'>
 
 const getExistingTaskSlugs = (config: Config): string[] => {
   const jobsConfig = config.jobs
@@ -37,22 +35,23 @@ const getExistingTaskSlugs = (config: Config): string[] => {
     .filter(Boolean)
 }
 
-const createDeferredTaskHandler = (taskSlug: string) => {
-  return async () => {
-    throw new Error(
-      `payload-notifications: task ${taskSlug} must be executed through registered plugin runtime`,
-    )
+const createDeferredTaskHandler = (taskSlug: string): TaskHandler<any> => {
+  return async (args: TaskHandlerArgs<any>) => {
+    return {
+      state: 'failed',
+      errorMessage: `payload-notifications: task ${taskSlug} must be executed through registered plugin runtime`,
+    } as TaskHandlerResult<any>
   }
 }
 
 const registerTaskDefinitions = (
   config: Config,
   tasks: NotificationQueueTask[],
-): RegisteredTask[] => {
+): TaskConfig<any>[] => {
   const existing = new Set(getExistingTaskSlugs(config))
-  const nextTasks: RegisteredTask[] =
+  const nextTasks: TaskConfig<any>[] =
     config.jobs && 'tasks' in config.jobs && Array.isArray(config.jobs.tasks)
-      ? [...(config.jobs.tasks as RegisteredTask[])]
+      ? [...(config.jobs.tasks as TaskConfig<any>[])]
       : []
 
   for (const task of tasks) {
@@ -61,7 +60,7 @@ const registerTaskDefinitions = (
     nextTasks.push({
       slug: task.slug,
       handler: createDeferredTaskHandler(task.slug),
-    })
+    } as TaskConfig<any>)
 
     existing.add(task.slug)
   }
@@ -88,7 +87,7 @@ export const notificationsPlugin = (options: NotificationsPluginOptions = {}) =>
       ...config,
       collections: withCollections,
       jobs: {
-        ...(config.jobs || {}),
+        ...config.jobs,
         tasks,
       },
     }

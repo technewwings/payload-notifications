@@ -22,10 +22,7 @@ export type {
   SMSProviderConfig,
   WhatsAppProviderConfig,
 } from './types'
-export {
-  NotificationsCollection,
-  buildNotificationMetaField,
-} from './collections/Notifications'
+export { NotificationsCollection, buildNotificationMetaField } from './collections/Notifications'
 export type { NotificationsCollectionOverrides } from './collections/Notifications'
 export {
   NotificationLogsCollection,

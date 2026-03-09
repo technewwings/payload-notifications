@@ -53,10 +53,10 @@ describe('payload-notifications', () => {
   })
 
   it('registers notification tasks once', () => {
-    const first = registerNotificationTasks(
-      {},
-      [{ slug: 'notification:process-event' }, { slug: 'notification:send' }],
-    )
+    const first = registerNotificationTasks({}, [
+      { slug: 'notification:process-event' },
+      { slug: 'notification:send' },
+    ])
 
     const second = registerNotificationTasks(
       {

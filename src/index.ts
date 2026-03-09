@@ -15,7 +15,15 @@ export type {
   SMSProviderConfig,
   WhatsAppProviderConfig,
 } from './types'
-export { NotificationsCollection } from './collections/Notifications'
-export { NotificationLogsCollection } from './collections/NotificationLogs'
+export {
+  NotificationsCollection,
+  buildNotificationMetaField,
+} from './collections/Notifications'
+export type { NotificationsCollectionOverrides } from './collections/Notifications'
+export {
+  NotificationLogsCollection,
+  buildProviderResponseField,
+} from './collections/NotificationLogs'
+export type { NotificationLogsCollectionOverrides } from './collections/NotificationLogs'
 export { processEvent, resolveRulesForEvent } from './jobs/processEvent'
 export { sendNotification } from './jobs/sendNotification'

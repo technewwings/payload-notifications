@@ -38,6 +38,19 @@ describe('payload-notifications', () => {
     expect(collections[1]?.slug).toBe('app-notification-logs')
   })
 
+  it('allows collection overrides during registration', () => {
+    const options = normalizePluginOptions()
+    const collections = registerCollections([], options, {
+      notifications: {
+        admin: {
+          useAsTitle: 'message',
+        },
+      },
+    })
+
+    expect(collections[0]?.admin?.useAsTitle).toBe('message')
+  })
+
   it('registers notification tasks once', () => {
     const first = registerNotificationTasks(
       {},

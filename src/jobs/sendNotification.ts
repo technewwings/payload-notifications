@@ -1,9 +1,67 @@
 import type { Payload } from 'payload'
-import type { NotificationSendInput, NotificationsPluginOptions } from '../types'
+import type {
+  NormalizedNotificationsPluginOptions,
+  NotificationDispatchResult,
+  NotificationSendInput,
+} from '../types'
 import { sendEmailNotification } from '../channels/email'
 import { sendInAppNotification } from '../channels/inapp'
 import { sendSMSNotification } from '../channels/sms'
 import { sendWhatsAppNotification } from '../channels/whatsapp'
+
+const isObject = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+export const assertNotificationSendInput = (value: unknown): NotificationSendInput => {
+  if (!isObject(value)) {
+    throw new Error('payload-notifications: notification send input must be an object')
+  }
+
+  if (typeof value.userId !== 'string' || !value.userId.trim()) {
+    throw new Error('payload-notifications: notification send input requires a userId')
+  }
+
+  if (typeof value.channel !== 'string' || !value.channel.trim()) {
+    throw new Error('payload-notifications: notification send input requires a channel')
+  }
+
+  if (typeof value.template !== 'string' || !value.template.trim()) {
+    throw new Error('payload-notifications: notification send input requires a template')
+  }
+
+  if (typeof value.event !== 'string' || !value.event.trim()) {
+    throw new Error('payload-notifications: notification send input requires an event')
+  }
+
+  if (value.eventPayload !== undefined && !isObject(value.eventPayload)) {
+    throw new Error('payload-notifications: notification send eventPayload must be an object')
+  }
+
+  return {
+    userId: value.userId,
+    channel: value.channel as NotificationSendInput['channel'],
+    template: value.template,
+    event: value.event,
+    eventPayload: value.eventPayload,
+    idempotencyKey: typeof value.idempotencyKey === 'string' ? value.idempotencyKey : undefined,
+  }
+}
+
+export const queueNotificationSend = async ({
+  payload,
+  input,
+}: {
+  payload: Payload
+  input: NotificationSendInput
+}) => {
+  const validatedInput = assertNotificationSendInput(input)
+
+  await payload.jobs.queue({
+    task: 'notification:send',
+    input: validatedInput,
+  })
+}
 
 export const sendNotification = async ({
   payload,
@@ -12,18 +70,31 @@ export const sendNotification = async ({
 }: {
   payload: Payload
   input: NotificationSendInput
-  options: NotificationsPluginOptions
-}) => {
-  switch (input.channel) {
+  options: NormalizedNotificationsPluginOptions
+}): Promise<NotificationDispatchResult | void> => {
+  const validatedInput = assertNotificationSendInput(input)
+
+  switch (validatedInput.channel) {
     case 'email':
-      return sendEmailNotification({ payload, input, options })
+      return sendEmailNotification({ payload, input: validatedInput, options })
     case 'whatsapp':
-      return sendWhatsAppNotification({ payload, input, options })
+      return sendWhatsAppNotification({ payload, input: validatedInput, options })
     case 'sms':
-      return sendSMSNotification({ payload, input, options })
+      return sendSMSNotification({ payload, input: validatedInput, options })
     case 'inapp':
-      return sendInAppNotification({ payload, input, options })
+      return sendInAppNotification({ payload, input: validatedInput, options })
     default:
-      throw new Error(`Unsupported notification channel: ${input.channel}`)
+      await payload.create({
+        collection: options.collections.logs,
+        data: {
+          user: validatedInput.userId,
+          event: validatedInput.event,
+          channel: 'inapp',
+          status: 'failed',
+          template: validatedInput.template,
+          error: `Unsupported notification channel: ${validatedInput.channel}`,
+        },
+      })
+      throw new Error(`Unsupported notification channel: ${validatedInput.channel}`)
   }
 }

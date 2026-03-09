@@ -1,4 +1,4 @@
-import type { Config } from 'payload'
+import type { Config, Payload } from 'payload'
 import type { CollectionConfig } from 'payload'
 import type {
   NormalizedNotificationsPluginOptions,
@@ -14,9 +14,16 @@ import {
   type NotificationLogsCollectionOverrides,
 } from './collections/NotificationLogs'
 import { normalizePluginOptions } from './config/normalizePluginOptions'
+import { assertNotificationEvent, processEvent } from './jobs/processEvent'
+import { assertNotificationSendInput, sendNotification } from './jobs/sendNotification'
 
 const hasCollectionSlug = (collections: CollectionConfig[] = [], slug: string): boolean => {
   return collections.some((collection) => collection.slug === slug)
+}
+
+type RegisteredTask = {
+  slug: string
+  handler?: (args: { input?: unknown }) => Promise<unknown>
 }
 
 const getExistingTaskSlugs = (config: Config): string[] => {
@@ -30,23 +37,36 @@ const getExistingTaskSlugs = (config: Config): string[] => {
     .filter(Boolean)
 }
 
+const createDeferredTaskHandler = (taskSlug: string) => {
+  return async () => {
+    throw new Error(
+      `payload-notifications: task ${taskSlug} must be executed through registered plugin runtime`,
+    )
+  }
+}
+
 const registerTaskDefinitions = (
   config: Config,
   tasks: NotificationQueueTask[],
-): Array<{ slug: string }> => {
+): RegisteredTask[] => {
   const existing = new Set(getExistingTaskSlugs(config))
-  const nextTasks =
+  const nextTasks: RegisteredTask[] =
     config.jobs && 'tasks' in config.jobs && Array.isArray(config.jobs.tasks)
-      ? [...config.jobs.tasks]
+      ? [...(config.jobs.tasks as RegisteredTask[])]
       : []
 
   for (const task of tasks) {
     if (existing.has(task.slug)) continue
-    nextTasks.push({ slug: task.slug })
+
+    nextTasks.push({
+      slug: task.slug,
+      handler: createDeferredTaskHandler(task.slug),
+    })
+
     existing.add(task.slug)
   }
 
-  return nextTasks as Array<{ slug: string }>
+  return nextTasks
 }
 
 export const notificationsPlugin = (options: NotificationsPluginOptions = {}) => {
@@ -109,3 +129,19 @@ export const registerCollections = (
 }
 
 export const registerNotificationTasks = registerTaskDefinitions
+
+export const createTaskHandlers = (
+  payload: Payload,
+  options: NormalizedNotificationsPluginOptions,
+) => {
+  return {
+    'notification:process-event': async ({ input }: { input?: unknown }) => {
+      const event = assertNotificationEvent(input)
+      await processEvent({ payload, event, options })
+    },
+    'notification:send': async ({ input }: { input?: unknown }) => {
+      const sendInput = assertNotificationSendInput(input)
+      return sendNotification({ payload, input: sendInput, options })
+    },
+  }
+}

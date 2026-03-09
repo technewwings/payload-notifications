@@ -10,6 +10,18 @@ export type NotificationTemplateContext = {
   payload?: NotificationEventPayload
 }
 
+export type NotificationTemplateDefinition = {
+  subject?: string
+  title?: string
+  body: string
+}
+
+export type NotificationTemplateSet = Partial<
+  Record<NotificationChannel, string | NotificationTemplateDefinition>
+>
+
+export type NotificationTemplateRegistry = Record<string, NotificationTemplateSet>
+
 export type NotificationEvent = {
   name: string
   userId?: string
@@ -77,6 +89,7 @@ export type NotificationsPluginOptions = {
     email?: string
     whatsapp?: string
     sms?: string
+    registry?: NotificationTemplateRegistry
   }
   providers?: {
     email?: EmailProviderConfig
@@ -106,6 +119,7 @@ export type NormalizedNotificationsPluginOptions = {
     email?: string
     whatsapp?: string
     sms?: string
+    registry: NotificationTemplateRegistry
   }
   providers: {
     email?: EmailProviderConfig
@@ -164,6 +178,20 @@ export type NotificationTemplateRenderer = (
   html?: string
   meta?: Record<string, unknown>
 }>
+
+export type NotificationTemplateResolution = {
+  event: string
+  channel: NotificationChannel
+  templateKey: string
+  definition: NotificationTemplateDefinition
+}
+
+export type NotificationTemplateResolver = (input: {
+  event: string
+  channel: NotificationChannel
+  templateKey?: string
+  options: NormalizedNotificationsPluginOptions
+}) => NotificationTemplateResolution
 
 export type WhatsAppProviderSendInput = {
   to: string

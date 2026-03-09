@@ -24,7 +24,12 @@ export type {
   NotificationSendJobInput,
   NotificationsPluginOptions,
   NotificationTemplateContext,
+  NotificationTemplateDefinition,
+  NotificationTemplateRegistry,
   NotificationTemplateRenderer,
+  NotificationTemplateResolution,
+  NotificationTemplateResolver,
+  NotificationTemplateSet,
   PreferenceFieldMapping,
   SMSProviderAdapter,
   SMSProviderConfig,
@@ -33,7 +38,10 @@ export type {
   WhatsAppProviderConfig,
   WhatsAppProviderSendInput,
 } from './types'
-export { NotificationsCollection, buildNotificationMetaField } from './collections/Notifications'
+export {
+  NotificationsCollection,
+  buildNotificationMetaField,
+} from './collections/Notifications'
 export type { NotificationsCollectionOverrides } from './collections/Notifications'
 export {
   NotificationLogsCollection,
@@ -51,7 +59,9 @@ export {
   queueNotificationSend,
   sendNotification,
 } from './jobs/sendNotification'
-export { renderTemplate } from './templates/render'
+export { evaluateNotificationPolicy } from './policy/evaluatePolicy'
 export { createSMSProvider } from './providers/sms'
 export { createWhatsAppProvider } from './providers/whatsapp'
-export { evaluateNotificationPolicy } from './policy/evaluatePolicy'
+export { buildCommonEventContext, buildTemplateContext, getContextValue } from './templates/context'
+export { renderTemplate } from './templates/render'
+export { resolveTemplate } from './templates/resolve'

@@ -5,8 +5,14 @@ import type {
   NotificationQueueTask,
   NotificationsPluginOptions,
 } from './types'
-import { NotificationsCollection } from './collections/Notifications'
-import { NotificationLogsCollection } from './collections/NotificationLogs'
+import {
+  NotificationsCollection,
+  type NotificationsCollectionOverrides,
+} from './collections/Notifications'
+import {
+  NotificationLogsCollection,
+  type NotificationLogsCollectionOverrides,
+} from './collections/NotificationLogs'
 import { normalizePluginOptions } from './config/normalizePluginOptions'
 
 const hasCollectionSlug = (collections: CollectionConfig[] = [], slug: string): boolean => {
@@ -29,9 +35,10 @@ const registerTaskDefinitions = (
   tasks: NotificationQueueTask[],
 ): Array<{ slug: string }> => {
   const existing = new Set(getExistingTaskSlugs(config))
-  const nextTasks = config.jobs && 'tasks' in config.jobs && Array.isArray(config.jobs.tasks)
-    ? [...config.jobs.tasks]
-    : []
+  const nextTasks =
+    config.jobs && 'tasks' in config.jobs && Array.isArray(config.jobs.tasks)
+      ? [...config.jobs.tasks]
+      : []
 
   for (const task of tasks) {
     if (existing.has(task.slug)) continue
@@ -71,17 +78,31 @@ export const notificationsPlugin = (options: NotificationsPluginOptions = {}) =>
 export const registerCollections = (
   collections: CollectionConfig[],
   options: NormalizedNotificationsPluginOptions,
+  overrides?: {
+    notifications?: NotificationsCollectionOverrides
+    logs?: NotificationLogsCollectionOverrides
+  },
 ): CollectionConfig[] => {
   const next = [...collections]
 
   if (!hasCollectionSlug(next, options.collections.notifications)) {
     next.push(
-      NotificationsCollection(options.userCollectionSlug, options.collections.notifications),
+      NotificationsCollection({
+        userCollectionSlug: options.userCollectionSlug,
+        slug: options.collections.notifications,
+        overrides: overrides?.notifications,
+      }),
     )
   }
 
   if (!hasCollectionSlug(next, options.collections.logs)) {
-    next.push(NotificationLogsCollection(options.userCollectionSlug, options.collections.logs))
+    next.push(
+      NotificationLogsCollection({
+        userCollectionSlug: options.userCollectionSlug,
+        slug: options.collections.logs,
+        overrides: overrides?.logs,
+      }),
+    )
   }
 
   return next

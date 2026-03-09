@@ -11,7 +11,7 @@ describe('sendNotification', () => {
     const input = assertNotificationSendInput({
       userId: 'user_1',
       channel: 'email',
-      template: 'order-paid',
+      template: 'order.paid',
       event: 'order.paid',
     })
 
@@ -31,7 +31,7 @@ describe('sendNotification', () => {
       input: {
         userId: 'user_1',
         channel: 'email',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
     })
@@ -54,7 +54,7 @@ describe('sendNotification', () => {
       input: {
         userId: 'user_1',
         channel: 'email',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
       options: normalizePluginOptions(),
@@ -78,7 +78,7 @@ describe('sendNotification', () => {
       input: {
         userId: 'user_1',
         channel: 'inapp',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
       options: normalizePluginOptions(),

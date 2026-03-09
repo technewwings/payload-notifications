@@ -1,12 +1,45 @@
 import type { Config } from 'payload'
 import type { CollectionConfig } from 'payload'
-import type { NormalizedNotificationsPluginOptions, NotificationsPluginOptions } from './types'
+import type {
+  NormalizedNotificationsPluginOptions,
+  NotificationQueueTask,
+  NotificationsPluginOptions,
+} from './types'
 import { NotificationsCollection } from './collections/Notifications'
 import { NotificationLogsCollection } from './collections/NotificationLogs'
 import { normalizePluginOptions } from './config/normalizePluginOptions'
 
 const hasCollectionSlug = (collections: CollectionConfig[] = [], slug: string): boolean => {
   return collections.some((collection) => collection.slug === slug)
+}
+
+const getExistingTaskSlugs = (config: Config): string[] => {
+  const jobsConfig = config.jobs
+  if (!jobsConfig || !('tasks' in jobsConfig) || !Array.isArray(jobsConfig.tasks)) {
+    return []
+  }
+
+  return jobsConfig.tasks
+    .map((task) => (task && typeof task === 'object' && 'slug' in task ? String(task.slug) : ''))
+    .filter(Boolean)
+}
+
+const registerTaskDefinitions = (
+  config: Config,
+  tasks: NotificationQueueTask[],
+): Array<{ slug: string }> => {
+  const existing = new Set(getExistingTaskSlugs(config))
+  const nextTasks = config.jobs && 'tasks' in config.jobs && Array.isArray(config.jobs.tasks)
+    ? [...config.jobs.tasks]
+    : []
+
+  for (const task of tasks) {
+    if (existing.has(task.slug)) continue
+    nextTasks.push({ slug: task.slug })
+    existing.add(task.slug)
+  }
+
+  return nextTasks as Array<{ slug: string }>
 }
 
 export const notificationsPlugin = (options: NotificationsPluginOptions = {}) => {
@@ -19,12 +52,17 @@ export const notificationsPlugin = (options: NotificationsPluginOptions = {}) =>
 
     const collections = [...(config.collections || [])]
     const withCollections = registerCollections(collections, normalizedOptions)
+    const tasks = registerTaskDefinitions(config, [
+      { slug: 'notification:process-event' },
+      { slug: 'notification:send' },
+    ])
 
     return {
       ...config,
       collections: withCollections,
       jobs: {
         ...(config.jobs || {}),
+        tasks,
       },
     }
   }
@@ -48,3 +86,5 @@ export const registerCollections = (
 
   return next
 }
+
+export const registerNotificationTasks = registerTaskDefinitions

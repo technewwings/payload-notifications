@@ -21,6 +21,22 @@ describe('normalizePluginOptions', () => {
     expect(normalized.channels).toEqual(['email', 'inapp'])
   })
 
+  it('respects overrides', () => {
+    const normalized = normalizePluginOptions({
+      enabled: false,
+      userCollectionSlug: 'customers',
+      collections: {
+        notifications: 'app-notifications',
+        logs: 'app-notification-logs',
+      },
+    })
+
+    expect(normalized.enabled).toBe(false)
+    expect(normalized.userCollectionSlug).toBe('customers')
+    expect(normalized.collections.notifications).toBe('app-notifications')
+    expect(normalized.collections.logs).toBe('app-notification-logs')
+  })
+
   it('throws for same notifications and logs slug', () => {
     expect(() =>
       normalizePluginOptions({

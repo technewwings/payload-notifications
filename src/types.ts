@@ -90,3 +90,13 @@ export type NotificationSendInput = {
   event: string
   eventPayload?: NotificationEventPayload
 }
+
+export type NotificationDispatchResult = {
+  channel: NotificationChannel
+  status: 'queued' | 'sent' | 'stored' | 'failed' | 'skipped'
+  reason?: string
+}
+
+export type NotificationQueueTask = {
+  slug: 'notification:process-event' | 'notification:send'
+}

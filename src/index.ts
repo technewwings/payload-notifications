@@ -1,12 +1,14 @@
-export { notificationsPlugin, registerCollections } from './plugin'
+export { notificationsPlugin, registerCollections, registerNotificationTasks } from './plugin'
 export { normalizePluginOptions, validateNormalizedOptions } from './config/normalizePluginOptions'
 export type {
   EmailProviderConfig,
   NormalizedNotificationsPluginOptions,
   NotificationChannel,
   NotificationClassification,
+  NotificationDispatchResult,
   NotificationEvent,
   NotificationEventPayload,
+  NotificationQueueTask,
   NotificationRule,
   NotificationSendInput,
   NotificationsPluginOptions,

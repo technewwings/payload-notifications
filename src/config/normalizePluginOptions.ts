@@ -11,16 +11,13 @@ const DEFAULT_CHANNELS: NormalizedNotificationsPluginOptions['channels'] = [
 export const normalizePluginOptions = (
   options: NotificationsPluginOptions = {},
 ): NormalizedNotificationsPluginOptions => {
-  // Track whether user explicitly provided channels
   const userProvidedChannels = options.channels !== undefined
 
-  // Deduplicate channels
   const channels =
     userProvidedChannels && options.channels?.length
       ? [...new Set(options.channels)]
       : DEFAULT_CHANNELS
 
-  // Validate same slug for notifications and logs collections
   const notificationsSlug = options.collections?.notifications || 'notifications'
   const logsSlug = options.collections?.logs || 'notification-logs'
 
@@ -28,7 +25,6 @@ export const normalizePluginOptions = (
     throw new Error('notifications and logs collections must use different slugs')
   }
 
-  // Validate WhatsApp provider when channel is explicitly enabled by user
   if (
     userProvidedChannels &&
     channels.includes('whatsapp') &&
@@ -37,7 +33,6 @@ export const normalizePluginOptions = (
     throw new Error('providers.whatsapp.provider is required')
   }
 
-  // Validate Twilio SMS config completeness
   if (
     userProvidedChannels &&
     channels.includes('sms') &&
@@ -81,14 +76,13 @@ export const normalizePluginOptions = (
     policy: {
       canSend: options.policy?.canSend,
     },
+    observability: {
+      onDispatch: options.observability?.onDispatch,
+    },
     rules: options.rules || [],
   }
 }
 
-/**
- * Validates an externally constructed NormalizedNotificationsPluginOptions object.
- * Use this when manually building options outside of normalizePluginOptions().
- */
 export const validateNormalizedOptions = (
   options: NormalizedNotificationsPluginOptions,
 ): NormalizedNotificationsPluginOptions => {

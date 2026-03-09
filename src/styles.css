@@ -1,0 +1,16 @@
+/* Plugin styles will go here */
+
+:root {
+  --pn-color-primary: #2563eb;
+  --pn-color-success: #059669;
+  --pn-color-warning: #d97706;
+  --pn-color-danger: #dc2626;
+  --pn-color-text: #111827;
+  --pn-color-text-muted: #6b7280;
+  --pn-color-surface: #ffffff;
+  --pn-color-border: #e5e7eb;
+}
+
+.payload-notifications {
+  font-family: inherit;
+}

@@ -55,6 +55,32 @@ export type NotificationPolicyContext = {
   payload?: NotificationEventPayload
 }
 
+export type DispatchFailureClassification = 'retriable' | 'terminal'
+
+export type DispatchFailureInfo = {
+  classification: DispatchFailureClassification
+  message: string
+}
+
+export type ObservabilityEvent = {
+  type: 'notification.dispatch'
+  channel: NotificationChannel
+  event: string
+  userId: string
+  status: NotificationDispatchStatus
+  reason?: string
+  provider?: string
+  providerMessageId?: string
+  idempotencyKey?: string
+  fingerprint?: string
+  attempt?: number
+  classification?: DispatchFailureClassification
+}
+
+export type NotificationObservabilityHook = (
+  event: ObservabilityEvent,
+) => void | Promise<void>
+
 export type EmailProviderConfig = {
   adapter?: unknown
   defaultFromName?: string
@@ -104,6 +130,9 @@ export type NotificationsPluginOptions = {
       context: NotificationPolicyContext,
     ) => NotificationPolicyDecision | Promise<NotificationPolicyDecision>
   }
+  observability?: {
+    onDispatch?: NotificationObservabilityHook
+  }
   rules?: NotificationRule[]
 }
 
@@ -137,6 +166,9 @@ export type NormalizedNotificationsPluginOptions = {
       context: NotificationPolicyContext,
     ) => NotificationPolicyDecision | Promise<NotificationPolicyDecision>
   }
+  observability: {
+    onDispatch?: NotificationObservabilityHook
+  }
   rules: NotificationRule[]
 }
 
@@ -148,6 +180,7 @@ export type NotificationSendInput = {
   eventPayload?: NotificationEventPayload
   classification?: NotificationClassification
   idempotencyKey?: string
+  attempt?: number
 }
 
 export type NotificationDispatchStatus = 'queued' | 'sent' | 'stored' | 'failed' | 'skipped'

@@ -1,23 +1,10 @@
-import type { NotificationDispatchResult, NotificationSendInput } from '../types'
+import type {
+  NotificationDispatchResult,
+  NotificationSendInput,
+  ObservabilityEvent,
+} from '../types'
 
-export type DispatchFailureClassification = 'retriable' | 'terminal'
-
-export type DispatchFailureInfo = {
-  classification: DispatchFailureClassification
-  message: string
-}
-
-export type ObservabilityEvent = {
-  type: 'notification.dispatch'
-  channel: NotificationSendInput['channel']
-  event: string
-  userId: string
-  status: NotificationDispatchResult['status']
-  reason?: string
-  provider?: string
-  providerMessageId?: string
-  idempotencyKey?: string
-}
+export type { DispatchFailureClassification, DispatchFailureInfo, ObservabilityEvent } from '../types'
 
 export const buildDeliveryFingerprint = (input: NotificationSendInput): string => {
   const parts = [
@@ -31,7 +18,7 @@ export const buildDeliveryFingerprint = (input: NotificationSendInput): string =
   return parts.join('::')
 }
 
-export const classifyDispatchFailure = (error: unknown): DispatchFailureInfo => {
+export const classifyDispatchFailure = (error: unknown) => {
   const message = error instanceof Error ? error.message : 'Unknown dispatch error'
   const normalized = message.toLowerCase()
 
@@ -42,13 +29,13 @@ export const classifyDispatchFailure = (error: unknown): DispatchFailureInfo => 
     normalized.includes('unavailable')
   ) {
     return {
-      classification: 'retriable',
+      classification: 'retriable' as const,
       message,
     }
   }
 
   return {
-    classification: 'terminal',
+    classification: 'terminal' as const,
     message,
   }
 }
@@ -56,9 +43,13 @@ export const classifyDispatchFailure = (error: unknown): DispatchFailureInfo => 
 export const createObservabilityEvent = ({
   input,
   result,
+  fingerprint,
+  classification,
 }: {
   input: NotificationSendInput
   result: NotificationDispatchResult
+  fingerprint?: string
+  classification?: 'retriable' | 'terminal'
 }): ObservabilityEvent => ({
   type: 'notification.dispatch',
   channel: input.channel,
@@ -69,4 +60,7 @@ export const createObservabilityEvent = ({
   provider: result.provider,
   providerMessageId: result.providerMessageId,
   idempotencyKey: input.idempotencyKey,
+  fingerprint,
+  attempt: input.attempt,
+  classification,
 })

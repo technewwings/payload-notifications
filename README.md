@@ -8,8 +8,8 @@ Production-ready notifications plugin for Payload CMS with an event-driven, mult
 - Delivery log persistence and in-app notification storage
 - Template registry and resolution utilities with starter transactional templates
 - Preference mapping, consent enforcement, and custom policy hooks
-- Reliability helpers for idempotency, retry classification, and observability
-- Bun-based test suite, contributor guidance, and release-readiness docs
+- Reliability helpers for idempotency, retry classification, retry-safe dispatch behavior, and observability hooks
+- Bun-based test suite, contributor guidance, CI expectations, and release-readiness docs
 
 ## Installation
 ```bash
@@ -31,6 +31,11 @@ export default notificationsPlugin({
       accountSid: process.env.TWILIO_ACCOUNT_SID,
       authToken: process.env.TWILIO_AUTH_TOKEN,
       from: process.env.TWILIO_SMS_FROM,
+    },
+  },
+  observability: {
+    onDispatch: async (event) => {
+      console.info(event)
     },
   },
   templates: {
@@ -73,7 +78,7 @@ const config = {
 }
 ```
 
-### Preferences and policy
+### Preferences, policy, and observability
 ```ts
 const config = {
   preferences: {
@@ -88,6 +93,11 @@ const config = {
       reason: 'SMS marketing disabled for free plan',
     }),
   },
+  observability: {
+    onDispatch: async (event) => {
+      console.log(event.type, event.status, event.fingerprint)
+    },
+  },
 }
 ```
 
@@ -97,6 +107,16 @@ The package exposes helpers to support retry-safe delivery and structured observ
 - `buildDeliveryFingerprint(input)` creates a deterministic deduplication key.
 - `classifyDispatchFailure(error)` marks failures as `retriable` or `terminal`.
 - `createObservabilityEvent(input)` shapes structured monitoring payloads.
+- The send flow blocks duplicate deliveries from already-completed fingerprints.
+- Retriable failures are re-queued up to three attempts.
+
+## Testing and CI
+```bash
+bun test
+bun run check
+```
+
+See `docs/testing-strategy.md` for coverage expectations and CI guidance.
 
 ## Common flows
 Starter templates are included for:
@@ -110,11 +130,7 @@ If you currently send notifications directly from hooks or services, migrate by:
 2. Moving per-channel message text into the template registry.
 3. Applying preference and policy checks centrally instead of inline.
 4. Using logs and in-app collections for auditability.
-
-## Testing
-```bash
-bun test
-```
+5. Attaching an observability hook for metrics or external monitoring.
 
 ## Release checklist
 - Run tests and fix regressions.

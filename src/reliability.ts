@@ -1,2 +1,10 @@
-export type { DispatchFailureClassification, DispatchFailureInfo, ObservabilityEvent } from './index'
-export { buildDeliveryFingerprint, classifyDispatchFailure, createObservabilityEvent } from './index'
+export type {
+  DispatchFailureClassification,
+  DispatchFailureInfo,
+  ObservabilityEvent,
+} from './reliability/index'
+export {
+  buildDeliveryFingerprint,
+  classifyDispatchFailure,
+  createObservabilityEvent,
+} from './reliability/index'

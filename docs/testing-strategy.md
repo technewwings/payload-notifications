@@ -5,10 +5,10 @@ This plugin should maintain automated coverage across:
 - collections
 - config normalization and validation
 - event processing and send jobs
-- channel success, skip, and failure paths
+- channel success, skip, retry, and failure paths
 - template resolution and rendering
 - policy and preference evaluation
-- reliability helpers
+- reliability helpers and observability hooks
 
 ## Principles
 - Prefer focused unit tests with explicit mocks.
@@ -19,8 +19,10 @@ This plugin should maintain automated coverage across:
 ## CI expectations
 A healthy CI run should include:
 - dependency install
-- format and lint checks when configured
+- format checks
+- lint checks
 - `bun test`
+- `bun run build`
 - package build validation before publish
 
 ## Contributor guidance

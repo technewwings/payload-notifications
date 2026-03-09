@@ -1,22 +1,27 @@
 import type { Payload } from 'payload'
-import type { NotificationSendInput, NotificationsPluginOptions } from '../types'
+import type {
+  NormalizedNotificationsPluginOptions,
+  NotificationDispatchResult,
+  NotificationSendInput,
+} from '../types'
 
 export const sendEmailNotification = async ({
   payload,
   input,
+  options,
 }: {
   payload: Payload
   input: NotificationSendInput
-  options: NotificationsPluginOptions
-}) => {
+  options: NormalizedNotificationsPluginOptions
+}): Promise<NotificationDispatchResult> => {
   const user = await payload.findByID({
-    collection: 'users',
+    collection: options.userCollectionSlug,
     id: input.userId,
   })
 
   if (!user?.email) {
     await payload.create({
-      collection: 'notification-logs',
+      collection: options.collections.logs,
       data: {
         user: input.userId,
         event: input.event,
@@ -26,7 +31,12 @@ export const sendEmailNotification = async ({
         error: 'User email not found',
       },
     })
-    return
+
+    return {
+      channel: 'email',
+      status: 'skipped',
+      reason: 'User email not found',
+    }
   }
 
   await payload.sendEmail({
@@ -36,7 +46,7 @@ export const sendEmailNotification = async ({
   })
 
   await payload.create({
-    collection: 'notification-logs',
+    collection: options.collections.logs,
     data: {
       user: input.userId,
       event: input.event,
@@ -45,4 +55,9 @@ export const sendEmailNotification = async ({
       template: input.template,
     },
   })
+
+  return {
+    channel: 'email',
+    status: 'sent',
+  }
 }

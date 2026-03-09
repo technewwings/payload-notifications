@@ -39,9 +39,7 @@ const dedupeChannels = (channels: NotificationChannel[]): NotificationChannel[] 
   return [...new Set(channels)]
 }
 
-export const validateNormalizedOptions = (
-  options: NormalizedNotificationsPluginOptions,
-): void => {
+export const validateNormalizedOptions = (options: NormalizedNotificationsPluginOptions): void => {
   if (!options.userCollectionSlug.trim()) {
     throw new Error('payload-notifications: userCollectionSlug must not be empty')
   }
@@ -88,9 +86,7 @@ const validateWhatsAppConfig = (options: NormalizedNotificationsPluginOptions): 
 
   if (provider.provider === 'meta') {
     if (!provider.accessToken || !provider.phoneNumberId) {
-      throw new Error(
-        'payload-notifications: Meta WhatsApp requires accessToken and phoneNumberId',
-      )
+      throw new Error('payload-notifications: Meta WhatsApp requires accessToken and phoneNumberId')
     }
   }
 }

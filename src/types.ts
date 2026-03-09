@@ -89,6 +89,7 @@ export type NotificationSendInput = {
   template: string
   event: string
   eventPayload?: NotificationEventPayload
+  idempotencyKey?: string
 }
 
 export type NotificationDispatchResult = {
@@ -100,3 +101,7 @@ export type NotificationDispatchResult = {
 export type NotificationQueueTask = {
   slug: 'notification:process-event' | 'notification:send'
 }
+
+export type NotificationProcessEventJobInput = NotificationEvent
+
+export type NotificationSendJobInput = NotificationSendInput

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 import {
+  createTaskHandlers,
   notificationsPlugin,
   registerCollections,
   registerNotificationTasks,
@@ -52,10 +53,10 @@ describe('payload-notifications', () => {
   })
 
   it('registers notification tasks once', () => {
-    const first = registerNotificationTasks(
-      {},
-      [{ slug: 'notification:process-event' }, { slug: 'notification:send' }],
-    )
+    const first = registerNotificationTasks({}, [
+      { slug: 'notification:process-event' },
+      { slug: 'notification:send' },
+    ])
 
     const second = registerNotificationTasks(
       {
@@ -76,5 +77,51 @@ describe('payload-notifications', () => {
 
     expect(config.collections).toHaveLength(2)
     expect(config.jobs && 'tasks' in config.jobs ? config.jobs.tasks : []).toHaveLength(2)
+  })
+
+  it('creates runnable task handlers for process-event and send', async () => {
+    const queue = mock(async () => undefined)
+    const create = mock(async () => undefined)
+    const findByID = mock(async () => ({ id: 'user_1', email: 'demo@example.com' }))
+    const sendEmail = mock(async () => undefined)
+
+    const payload = {
+      jobs: { queue },
+      create,
+      findByID,
+      sendEmail,
+    }
+
+    const handlers = createTaskHandlers(
+      payload as never,
+      normalizePluginOptions({
+        rules: [
+          {
+            event: 'order.paid',
+            channels: ['email'],
+            template: 'order-paid',
+          },
+        ],
+      }),
+    )
+
+    await handlers['notification:process-event']({
+      input: {
+        name: 'order.paid',
+        userId: 'user_1',
+      },
+    })
+
+    await handlers['notification:send']({
+      input: {
+        userId: 'user_1',
+        channel: 'email',
+        template: 'order-paid',
+        event: 'order.paid',
+      },
+    })
+
+    expect(queue).toHaveBeenCalledTimes(1)
+    expect(sendEmail).toHaveBeenCalledTimes(1)
   })
 })

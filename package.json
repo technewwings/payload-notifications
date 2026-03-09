@@ -59,16 +59,20 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "test:coverage": "bun test --coverage",
-    "lint": "oxlint src",
-    "lint:fix": "oxlint src --fix",
+    "lint": "oxlint src tests",
+    "lint:fix": "oxlint src tests --fix",
     "format": "oxfmt \"**/*.{js,mjs,cjs,ts,tsx,mts,cts}\"",
     "format:check": "oxfmt --check \"**/*.{js,mjs,cjs,ts,tsx,mts,cts}\"",
+    "check": "bun run lint && bun run format:check && bun run test",
+    "prepare": "husky",
     "prepublishOnly": "bun run test && bun run build"
   },
   "dependencies": {},
   "devDependencies": {
     "@types/bun": "^1.3.10",
     "@types/node": "^25.3.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.3.2",
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
     "prettier": "^3.8.1",
@@ -80,5 +84,11 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,tsx,mts,cts}": [
+      "oxfmt",
+      "oxlint --fix"
+    ]
   }
 }

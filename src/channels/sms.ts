@@ -1,16 +1,21 @@
 import type { Payload } from 'payload'
-import type { NotificationSendInput, NotificationsPluginOptions } from '../types'
+import type {
+  NormalizedNotificationsPluginOptions,
+  NotificationDispatchResult,
+  NotificationSendInput,
+} from '../types'
 
 export const sendSMSNotification = async ({
   payload,
   input,
+  options,
 }: {
   payload: Payload
   input: NotificationSendInput
-  options: NotificationsPluginOptions
-}) => {
+  options: NormalizedNotificationsPluginOptions
+}): Promise<NotificationDispatchResult> => {
   await payload.create({
-    collection: 'notification-logs',
+    collection: options.collections.logs,
     data: {
       user: input.userId,
       event: input.event,
@@ -20,4 +25,10 @@ export const sendSMSNotification = async ({
       error: 'SMS provider integration scaffolded but not yet implemented',
     },
   })
+
+  return {
+    channel: 'sms',
+    status: 'queued',
+    reason: 'SMS provider integration scaffolded but not yet implemented',
+  }
 }

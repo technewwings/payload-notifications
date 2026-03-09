@@ -1,26 +1,33 @@
 import type { Payload } from 'payload'
-import type { NotificationSendInput, NotificationsPluginOptions } from '../types'
+import type {
+  NormalizedNotificationsPluginOptions,
+  NotificationDispatchResult,
+  NotificationSendInput,
+} from '../types'
 
 export const sendInAppNotification = async ({
   payload,
   input,
+  options,
 }: {
   payload: Payload
   input: NotificationSendInput
-  options: NotificationsPluginOptions
-}) => {
+  options: NormalizedNotificationsPluginOptions
+}): Promise<NotificationDispatchResult> => {
   await payload.create({
-    collection: 'notifications',
+    collection: options.collections.notifications,
     data: {
       title: `Notification for ${input.event}`,
       message: `Template ${input.template} stored for ${input.event}`,
       recipient: input.userId,
-      meta: input.eventPayload,
+      meta: {
+        data: input.eventPayload,
+      },
     },
   })
 
   await payload.create({
-    collection: 'notification-logs',
+    collection: options.collections.logs,
     data: {
       user: input.userId,
       event: input.event,
@@ -29,4 +36,9 @@ export const sendInAppNotification = async ({
       template: input.template,
     },
   })
+
+  return {
+    channel: 'inapp',
+    status: 'stored',
+  }
 }

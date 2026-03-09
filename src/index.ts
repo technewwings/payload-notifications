@@ -6,11 +6,13 @@ export {
 } from './plugin'
 export { normalizePluginOptions, validateNormalizedOptions } from './config/normalizePluginOptions'
 export type {
+  ChannelProviderResult,
   EmailProviderConfig,
   NormalizedNotificationsPluginOptions,
   NotificationChannel,
   NotificationClassification,
   NotificationDispatchResult,
+  NotificationDispatchStatus,
   NotificationEvent,
   NotificationEventPayload,
   NotificationProcessEventJobInput,
@@ -19,10 +21,19 @@ export type {
   NotificationSendInput,
   NotificationSendJobInput,
   NotificationsPluginOptions,
+  NotificationTemplateContext,
+  NotificationTemplateRenderer,
+  SMSProviderAdapter,
   SMSProviderConfig,
+  SMSProviderSendInput,
+  WhatsAppProviderAdapter,
   WhatsAppProviderConfig,
+  WhatsAppProviderSendInput,
 } from './types'
-export { NotificationsCollection, buildNotificationMetaField } from './collections/Notifications'
+export {
+  NotificationsCollection,
+  buildNotificationMetaField,
+} from './collections/Notifications'
 export type { NotificationsCollectionOverrides } from './collections/Notifications'
 export {
   NotificationLogsCollection,
@@ -40,3 +51,6 @@ export {
   queueNotificationSend,
   sendNotification,
 } from './jobs/sendNotification'
+export { renderTemplate } from './templates/render'
+export { createSMSProvider } from './providers/sms'
+export { createWhatsAppProvider } from './providers/whatsapp'

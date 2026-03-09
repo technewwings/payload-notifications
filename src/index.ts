@@ -15,6 +15,8 @@ export type {
   NotificationDispatchStatus,
   NotificationEvent,
   NotificationEventPayload,
+  NotificationPolicyContext,
+  NotificationPolicyDecision,
   NotificationProcessEventJobInput,
   NotificationQueueTask,
   NotificationRule,
@@ -23,6 +25,7 @@ export type {
   NotificationsPluginOptions,
   NotificationTemplateContext,
   NotificationTemplateRenderer,
+  PreferenceFieldMapping,
   SMSProviderAdapter,
   SMSProviderConfig,
   SMSProviderSendInput,
@@ -51,3 +54,4 @@ export {
 export { renderTemplate } from './templates/render'
 export { createSMSProvider } from './providers/sms'
 export { createWhatsAppProvider } from './providers/whatsapp'
+export { evaluateNotificationPolicy } from './policy/evaluatePolicy'

@@ -25,6 +25,24 @@ export type NotificationRule = {
   condition?: (payload: NotificationEventPayload) => boolean | Promise<boolean>
 }
 
+export type PreferenceFieldMapping = {
+  channels?: string
+  marketingConsent?: string
+}
+
+export type NotificationPolicyDecision = {
+  allow: boolean
+  reason?: string
+}
+
+export type NotificationPolicyContext = {
+  channel: NotificationChannel
+  event: string
+  classification?: NotificationClassification
+  user: Record<string, unknown>
+  payload?: NotificationEventPayload
+}
+
 export type EmailProviderConfig = {
   adapter?: unknown
   defaultFromName?: string
@@ -65,6 +83,14 @@ export type NotificationsPluginOptions = {
     whatsapp?: Partial<WhatsAppProviderConfig>
     sms?: Partial<SMSProviderConfig>
   }
+  preferences?: {
+    fields?: PreferenceFieldMapping
+  }
+  policy?: {
+    canSend?: (
+      context: NotificationPolicyContext,
+    ) => NotificationPolicyDecision | Promise<NotificationPolicyDecision>
+  }
   rules?: NotificationRule[]
 }
 
@@ -86,6 +112,17 @@ export type NormalizedNotificationsPluginOptions = {
     whatsapp?: Partial<WhatsAppProviderConfig>
     sms?: Partial<SMSProviderConfig>
   }
+  preferences: {
+    fields: {
+      channels: string
+      marketingConsent: string
+    }
+  }
+  policy: {
+    canSend?: (
+      context: NotificationPolicyContext,
+    ) => NotificationPolicyDecision | Promise<NotificationPolicyDecision>
+  }
   rules: NotificationRule[]
 }
 
@@ -95,6 +132,7 @@ export type NotificationSendInput = {
   template: string
   event: string
   eventPayload?: NotificationEventPayload
+  classification?: NotificationClassification
   idempotencyKey?: string
 }
 

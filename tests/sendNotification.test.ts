@@ -67,8 +67,10 @@ describe('sendNotification', () => {
 
   it('stores in-app notifications and logs them', async () => {
     const create = mock(async () => undefined)
+    const findByID = mock(async () => ({ id: 'user_1', email: 'demo@example.com' }))
     const payload = {
       create,
+      findByID,
     }
 
     const result = await sendNotification({

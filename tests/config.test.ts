@@ -6,7 +6,7 @@ describe('normalizePluginOptions', () => {
     const normalized = normalizePluginOptions()
 
     expect(normalized.enabled).toBe(true)
-    expect(normalized.channels).toEqual(['email', 'inapp'])
+    expect(normalized.channels).toEqual(['email', 'whatsapp', 'sms', 'inapp'])
     expect(normalized.userCollectionSlug).toBe('users')
     expect(normalized.collections.notifications).toBe('notifications')
     expect(normalized.collections.logs).toBe('notification-logs')

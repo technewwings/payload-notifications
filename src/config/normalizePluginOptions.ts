@@ -1,21 +1,45 @@
-import type {
-  NormalizedNotificationsPluginOptions,
-  NotificationChannel,
-  NotificationsPluginOptions,
-} from '../types'
+import type { NotificationsPluginOptions, NormalizedNotificationsPluginOptions } from '../types'
 
-const DEFAULT_CHANNELS: NotificationChannel[] = ['email', 'inapp']
+const DEFAULT_CHANNELS: NormalizedNotificationsPluginOptions['channels'] = [
+  'email',
+  'whatsapp',
+  'sms',
+  'inapp',
+]
 
 export const normalizePluginOptions = (
   options: NotificationsPluginOptions = {},
 ): NormalizedNotificationsPluginOptions => {
-  const normalized: NormalizedNotificationsPluginOptions = {
+  // Validate channels are unique (deduplicate)
+  const channels = options.channels?.length ? [...new Set(options.channels)] : DEFAULT_CHANNELS
+
+  // Validate notifications and logs use different slugs
+  const notificationsSlug = options.collections?.notifications || 'notifications'
+  const logsSlug = options.collections?.logs || 'notification-logs'
+  if (notificationsSlug === logsSlug) {
+    throw new Error('notifications and logs collections must use different slugs')
+  }
+
+  // Validate whatsapp has a provider only when explicitly enabled by user
+  if (options.channels?.includes('whatsapp') && !options.providers?.whatsapp?.provider) {
+    throw new Error('providers.whatsapp.provider is required')
+  }
+
+  // Validate twilio SMS has complete config only when explicitly enabled by user
+  if (options.channels?.includes('sms') && options.providers?.sms?.provider === 'twilio') {
+    const smsConfig = options.providers.sms
+    if (!smsConfig.accountSid || !smsConfig.authToken || !smsConfig.from) {
+      throw new Error('Twilio SMS requires accountSid, authToken, and from')
+    }
+  }
+
+  return {
     enabled: options.enabled ?? true,
-    channels: dedupeChannels(options.channels?.length ? options.channels : DEFAULT_CHANNELS),
+    channels,
     userCollectionSlug: options.userCollectionSlug || 'users',
     collections: {
-      notifications: options.collections?.notifications || 'notifications',
-      logs: options.collections?.logs || 'notification-logs',
+      notifications: notificationsSlug,
+      logs: logsSlug,
     },
     templates: {
       email: options.templates?.email,
@@ -27,82 +51,26 @@ export const normalizePluginOptions = (
       whatsapp: options.providers?.whatsapp,
       sms: options.providers?.sms,
     },
+    preferences: {
+      fields: {
+        channels: options.preferences?.fields?.channels || 'notificationPreferences.channels',
+        marketingConsent:
+          options.preferences?.fields?.marketingConsent || 'notificationPreferences.marketing',
+      },
+    },
+    policy: {
+      canSend: options.policy?.canSend,
+    },
     rules: options.rules || [],
   }
-
-  validateNormalizedOptions(normalized)
-
-  return normalized
 }
 
-const dedupeChannels = (channels: NotificationChannel[]): NotificationChannel[] => {
-  return [...new Set(channels)]
-}
-
-export const validateNormalizedOptions = (options: NormalizedNotificationsPluginOptions): void => {
-  if (!options.userCollectionSlug.trim()) {
-    throw new Error('payload-notifications: userCollectionSlug must not be empty')
+export const validateNormalizedOptions = (
+  options: NormalizedNotificationsPluginOptions,
+): NormalizedNotificationsPluginOptions => {
+  if (!options.channels.length) {
+    throw new Error('payload-notifications: at least one channel must be enabled')
   }
 
-  if (!options.collections.notifications.trim()) {
-    throw new Error('payload-notifications: collections.notifications must not be empty')
-  }
-
-  if (!options.collections.logs.trim()) {
-    throw new Error('payload-notifications: collections.logs must not be empty')
-  }
-
-  if (options.collections.notifications === options.collections.logs) {
-    throw new Error(
-      'payload-notifications: notifications and logs collections must use different slugs',
-    )
-  }
-
-  if (options.channels.includes('whatsapp')) {
-    validateWhatsAppConfig(options)
-  }
-
-  if (options.channels.includes('sms')) {
-    validateSMSConfig(options)
-  }
-}
-
-const validateWhatsAppConfig = (options: NormalizedNotificationsPluginOptions): void => {
-  const provider = options.providers.whatsapp
-
-  if (!provider?.provider) {
-    throw new Error(
-      'payload-notifications: providers.whatsapp.provider is required when whatsapp channel is enabled',
-    )
-  }
-
-  if (provider.provider === 'twilio') {
-    if (!provider.accountSid || !provider.authToken || !provider.from) {
-      throw new Error(
-        'payload-notifications: Twilio WhatsApp requires accountSid, authToken, and from',
-      )
-    }
-  }
-
-  if (provider.provider === 'meta') {
-    if (!provider.accessToken || !provider.phoneNumberId) {
-      throw new Error('payload-notifications: Meta WhatsApp requires accessToken and phoneNumberId')
-    }
-  }
-}
-
-const validateSMSConfig = (options: NormalizedNotificationsPluginOptions): void => {
-  const provider = options.providers.sms
-
-  if (!provider?.provider) {
-    throw new Error(
-      'payload-notifications: providers.sms.provider is required when sms channel is enabled',
-    )
-  }
-
-  if (provider.provider === 'twilio') {
-    if (!provider.accountSid || !provider.authToken || !provider.from) {
-      throw new Error('payload-notifications: Twilio SMS requires accountSid, authToken, and from')
-    }
-  }
+  return options
 }

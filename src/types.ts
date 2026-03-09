@@ -136,12 +136,7 @@ export type NotificationSendInput = {
   idempotencyKey?: string
 }
 
-export type NotificationDispatchStatus =
-  | 'queued'
-  | 'sent'
-  | 'stored'
-  | 'failed'
-  | 'skipped'
+export type NotificationDispatchStatus = 'queued' | 'sent' | 'stored' | 'failed' | 'skipped'
 
 export type NotificationDispatchResult = {
   channel: NotificationChannel

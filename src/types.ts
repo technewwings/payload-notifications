@@ -77,9 +77,7 @@ export type ObservabilityEvent = {
   classification?: DispatchFailureClassification
 }
 
-export type NotificationObservabilityHook = (
-  event: ObservabilityEvent,
-) => void | Promise<void>
+export type NotificationObservabilityHook = (event: ObservabilityEvent) => void | Promise<void>
 
 export type EmailProviderConfig = {
   adapter?: unknown

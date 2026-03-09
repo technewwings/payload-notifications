@@ -4,7 +4,11 @@ import type {
   ObservabilityEvent,
 } from '../types'
 
-export type { DispatchFailureClassification, DispatchFailureInfo, ObservabilityEvent } from '../types'
+export type {
+  DispatchFailureClassification,
+  DispatchFailureInfo,
+  ObservabilityEvent,
+} from '../types'
 
 export const buildDeliveryFingerprint = (input: NotificationSendInput): string => {
   const parts = [

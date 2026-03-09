@@ -293,7 +293,12 @@ export const sendNotification = async ({
       payload,
       options,
       input: validatedInput,
-      status: finalResult.status === 'stored' ? 'stored' : finalResult.status === 'skipped' ? 'skipped' : 'failed',
+      status:
+        finalResult.status === 'stored'
+          ? 'stored'
+          : finalResult.status === 'skipped'
+            ? 'skipped'
+            : 'failed',
       reason: finalResult.reason,
       fingerprint,
       provider: finalResult.provider,

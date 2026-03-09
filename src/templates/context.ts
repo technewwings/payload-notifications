@@ -45,10 +45,7 @@ export const buildCommonEventContext = ({
   return buildTemplateContext({ event, userId, payload })
 }
 
-export const getContextValue = (
-  context: NotificationTemplateContext,
-  key: string,
-): unknown => {
+export const getContextValue = (context: NotificationTemplateContext, key: string): unknown => {
   if (key === 'event') return context.event
   if (key === 'userId') return context.userId
   if (key.startsWith('payload.')) {

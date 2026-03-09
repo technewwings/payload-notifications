@@ -25,7 +25,7 @@ export const normalizePluginOptions = (
       sms: options.templates?.sms,
       registry: {
         ...getDefaultTemplateRegistry(),
-        ...(options.templates?.registry || {}),
+        ...options.templates?.registry,
       },
     },
     providers: {
@@ -59,7 +59,9 @@ export const validateNormalizedOptions = (
   }
 
   if (options.channels.includes('sms') && !options.providers.sms?.provider) {
-    throw new Error('payload-notifications: providers.sms.provider is required when sms channel is enabled')
+    throw new Error(
+      'payload-notifications: providers.sms.provider is required when sms channel is enabled',
+    )
   }
 
   return options

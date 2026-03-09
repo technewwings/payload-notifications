@@ -99,7 +99,7 @@ describe('payload-notifications', () => {
           {
             event: 'order.paid',
             channels: ['email'],
-            template: 'order-paid',
+            template: 'order.paid',
           },
         ],
       }),
@@ -116,7 +116,7 @@ describe('payload-notifications', () => {
       input: {
         userId: 'user_1',
         channel: 'email',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
     })

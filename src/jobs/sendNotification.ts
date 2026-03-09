@@ -9,6 +9,7 @@ import { sendInAppNotification } from '../channels/inapp'
 import { sendSMSNotification } from '../channels/sms'
 import { sendWhatsAppNotification } from '../channels/whatsapp'
 import { evaluateNotificationPolicy } from '../policy/evaluatePolicy'
+import { resolveTemplate } from '../templates/resolve'
 
 const isObject = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -129,15 +130,27 @@ export const sendNotification = async ({
     }
   }
 
+  const resolved = resolveTemplate({
+    event: validatedInput.event,
+    channel: validatedInput.channel,
+    templateKey: validatedInput.template,
+    options,
+  })
+
+  const sendInput = {
+    ...validatedInput,
+    template: resolved.definition.body,
+  }
+
   switch (validatedInput.channel) {
     case 'email':
-      return sendEmailNotification({ payload, input: validatedInput, options })
+      return sendEmailNotification({ payload, input: sendInput, options })
     case 'whatsapp':
-      return sendWhatsAppNotification({ payload, input: validatedInput, options })
+      return sendWhatsAppNotification({ payload, input: sendInput, options })
     case 'sms':
-      return sendSMSNotification({ payload, input: validatedInput, options })
+      return sendSMSNotification({ payload, input: sendInput, options })
     case 'inapp':
-      return sendInAppNotification({ payload, input: validatedInput, options })
+      return sendInAppNotification({ payload, input: sendInput, options })
     default:
       await payload.create({
         collection: options.collections.logs,

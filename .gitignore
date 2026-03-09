@@ -7,3 +7,4 @@ coverage/
 .env.local
 bun.lockb
 tsconfig.tsbuildinfo
+example/app/app.db

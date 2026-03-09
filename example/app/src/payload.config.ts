@@ -4,6 +4,7 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 import sharp from 'sharp'
+import { notificationsPlugin } from '@wtree/payload-notifications'
 
 import { Users } from './collections/Users'
 import { Media } from './collections/Media'
@@ -30,5 +31,14 @@ export default buildConfig({
     },
   }),
   sharp,
-  plugins: [],
+  plugins: [
+    notificationsPlugin({
+      userCollectionSlug: Users.slug,
+      channels: ['email', 'inapp'],
+      collections: {
+        notifications: 'notifications',
+        logs: 'notification-logs',
+      },
+    }),
+  ],
 })

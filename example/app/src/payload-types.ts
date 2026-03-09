@@ -69,7 +69,10 @@ export interface Config {
   collections: {
     users: User
     media: Media
+    notifications: Notification
+    'notification-logs': NotificationLog
     'payload-kv': PayloadKv
+    'payload-jobs': PayloadJob
     'payload-locked-documents': PayloadLockedDocument
     'payload-preferences': PayloadPreference
     'payload-migrations': PayloadMigration
@@ -78,7 +81,10 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>
     media: MediaSelect<false> | MediaSelect<true>
+    notifications: NotificationsSelect<false> | NotificationsSelect<true>
+    'notification-logs': NotificationLogsSelect<false> | NotificationLogsSelect<true>
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>
+    'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>
     'payload-locked-documents':
       | PayloadLockedDocumentsSelect<false>
       | PayloadLockedDocumentsSelect<true>
@@ -86,15 +92,25 @@ export interface Config {
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>
   }
   db: {
-    defaultIDType: string
+    defaultIDType: number
   }
   fallbackLocale: null
   globals: {}
   globalsSelect: {}
   locale: null
+  widgets: {
+    collections: CollectionsWidget
+  }
   user: User
   jobs: {
-    tasks: unknown
+    tasks: {
+      'notification:process-event': TaskNotificationProcessEvent
+      'notification:send': TaskNotificationSend
+      inline: {
+        input: unknown
+        output: unknown
+      }
+    }
     workflows: unknown
   }
 }
@@ -121,7 +137,7 @@ export interface UserAuthOperations {
  * via the `definition` "users".
  */
 export interface User {
-  id: string
+  id: number
   updatedAt: string
   createdAt: string
   email: string
@@ -146,7 +162,7 @@ export interface User {
  * via the `definition` "media".
  */
 export interface Media {
-  id: string
+  id: number
   alt: string
   updatedAt: string
   createdAt: string
@@ -162,10 +178,82 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications".
+ */
+export interface Notification {
+  id: number
+  title: string
+  message: string
+  recipient: number | User
+  channel: 'inapp'
+  type: 'transactional' | 'marketing' | 'system'
+  priority: 'low' | 'normal' | 'high' | 'urgent'
+  isRead?: boolean | null
+  readAt?: string | null
+  deliveredAt?: string | null
+  meta?: {
+    link?: string | null
+    entityType?: string | null
+    entityID?: string | null
+    data?:
+      | {
+          [k: string]: unknown
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null
+  }
+  updatedAt: string
+  createdAt: string
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notification-logs".
+ */
+export interface NotificationLog {
+  id: number
+  user?: (number | null) | User
+  event: string
+  channel: 'email' | 'whatsapp' | 'sms' | 'inapp' | 'push'
+  status: 'queued' | 'sent' | 'stored' | 'failed' | 'skipped'
+  template?: string | null
+  idempotencyKey?: string | null
+  attempt?: number | null
+  error?: string | null
+  providerResponse?: {
+    provider?: string | null
+    messageID?: string | null
+    requestID?: string | null
+    raw?:
+      | {
+          [k: string]: unknown
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null
+  }
+  meta?:
+    | {
+        [k: string]: unknown
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null
+  updatedAt: string
+  createdAt: string
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
-  id: string
+  id: number
   key: string
   data:
     | {
@@ -179,23 +267,123 @@ export interface PayloadKv {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs".
+ */
+export interface PayloadJob {
+  id: number
+  /**
+   * Input data provided to the job
+   */
+  input?:
+    | {
+        [k: string]: unknown
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null
+  taskStatus?:
+    | {
+        [k: string]: unknown
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null
+  completedAt?: string | null
+  totalTried?: number | null
+  /**
+   * If hasError is true this job will not be retried
+   */
+  hasError?: boolean | null
+  /**
+   * If hasError is true, this is the error that caused it
+   */
+  error?:
+    | {
+        [k: string]: unknown
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null
+  /**
+   * Task execution log
+   */
+  log?:
+    | {
+        executedAt: string
+        completedAt: string
+        taskSlug: 'inline' | 'notification:process-event' | 'notification:send'
+        taskID: string
+        input?:
+          | {
+              [k: string]: unknown
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null
+        output?:
+          | {
+              [k: string]: unknown
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null
+        state: 'failed' | 'succeeded'
+        error?:
+          | {
+              [k: string]: unknown
+            }
+          | unknown[]
+          | string
+          | number
+          | boolean
+          | null
+        id?: string | null
+      }[]
+    | null
+  taskSlug?: ('inline' | 'notification:process-event' | 'notification:send') | null
+  queue?: string | null
+  waitUntil?: string | null
+  processing?: boolean | null
+  updatedAt: string
+  createdAt: string
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: string
+  id: number
   document?:
     | ({
         relationTo: 'users'
-        value: string | User
+        value: number | User
       } | null)
     | ({
         relationTo: 'media'
-        value: string | Media
+        value: number | Media
+      } | null)
+    | ({
+        relationTo: 'notifications'
+        value: number | Notification
+      } | null)
+    | ({
+        relationTo: 'notification-logs'
+        value: number | NotificationLog
       } | null)
   globalSlug?: string | null
   user: {
     relationTo: 'users'
-    value: string | User
+    value: number | User
   }
   updatedAt: string
   createdAt: string
@@ -205,10 +393,10 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: string
+  id: number
   user: {
     relationTo: 'users'
-    value: string | User
+    value: number | User
   }
   key?: string | null
   value?:
@@ -228,7 +416,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: string
+  id: number
   name?: string | null
   batch?: number | null
   updatedAt: string
@@ -276,11 +464,92 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notifications_select".
+ */
+export interface NotificationsSelect<T extends boolean = true> {
+  title?: T
+  message?: T
+  recipient?: T
+  channel?: T
+  type?: T
+  priority?: T
+  isRead?: T
+  readAt?: T
+  deliveredAt?: T
+  meta?:
+    | T
+    | {
+        link?: T
+        entityType?: T
+        entityID?: T
+        data?: T
+      }
+  updatedAt?: T
+  createdAt?: T
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notification-logs_select".
+ */
+export interface NotificationLogsSelect<T extends boolean = true> {
+  user?: T
+  event?: T
+  channel?: T
+  status?: T
+  template?: T
+  idempotencyKey?: T
+  attempt?: T
+  error?: T
+  providerResponse?:
+    | T
+    | {
+        provider?: T
+        messageID?: T
+        requestID?: T
+        raw?: T
+      }
+  meta?: T
+  updatedAt?: T
+  createdAt?: T
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv_select".
  */
 export interface PayloadKvSelect<T extends boolean = true> {
   key?: T
   data?: T
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "payload-jobs_select".
+ */
+export interface PayloadJobsSelect<T extends boolean = true> {
+  input?: T
+  taskStatus?: T
+  completedAt?: T
+  totalTried?: T
+  hasError?: T
+  error?: T
+  log?:
+    | T
+    | {
+        executedAt?: T
+        completedAt?: T
+        taskSlug?: T
+        taskID?: T
+        input?: T
+        output?: T
+        state?: T
+        error?: T
+        id?: T
+      }
+  taskSlug?: T
+  queue?: T
+  waitUntil?: T
+  processing?: T
+  updatedAt?: T
+  createdAt?: T
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -313,6 +582,32 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   batch?: T
   updatedAt?: T
   createdAt?: T
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "collections_widget".
+ */
+export interface CollectionsWidget {
+  data?: {
+    [k: string]: unknown
+  }
+  width: 'full'
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskNotification:process-event".
+ */
+export interface TaskNotificationProcessEvent {
+  input?: unknown
+  output?: unknown
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskNotification:send".
+ */
+export interface TaskNotificationSend {
+  input?: unknown
+  output?: unknown
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

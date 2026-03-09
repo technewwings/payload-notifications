@@ -2,8 +2,9 @@ import type { CollectionConfig } from 'payload'
 
 export const NotificationsCollection = (
   userCollectionSlug = 'users',
+  slug = 'notifications',
 ): CollectionConfig => ({
-  slug: 'notifications',
+  slug,
   labels: {
     singular: 'Notification',
     plural: 'Notifications',

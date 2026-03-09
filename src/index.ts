@@ -1,10 +1,17 @@
-export { notificationsPlugin } from './plugin'
+export { notificationsPlugin, registerCollections } from './plugin'
+export { normalizePluginOptions, validateNormalizedOptions } from './config/normalizePluginOptions'
 export type {
+  EmailProviderConfig,
+  NormalizedNotificationsPluginOptions,
   NotificationChannel,
+  NotificationClassification,
   NotificationEvent,
+  NotificationEventPayload,
   NotificationRule,
   NotificationSendInput,
   NotificationsPluginOptions,
+  SMSProviderConfig,
+  WhatsAppProviderConfig,
 } from './types'
 export { NotificationsCollection } from './collections/Notifications'
 export { NotificationLogsCollection } from './collections/NotificationLogs'

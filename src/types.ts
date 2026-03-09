@@ -1,16 +1,22 @@
 export type NotificationChannel = 'email' | 'whatsapp' | 'sms' | 'inapp' | 'push'
 
+export type NotificationClassification = 'transactional' | 'marketing'
+
+export type NotificationEventPayload = Record<string, unknown>
+
 export type NotificationEvent = {
   name: string
   userId?: string
-  payload?: Record<string, unknown>
+  payload?: NotificationEventPayload
+  classification?: NotificationClassification
+  idempotencyKey?: string
 }
 
 export type NotificationRule = {
   event: string
   channels: NotificationChannel[]
   template: string
-  condition?: (payload: Record<string, unknown>) => boolean | Promise<boolean>
+  condition?: (payload: NotificationEventPayload) => boolean | Promise<boolean>
 }
 
 export type EmailProviderConfig = {
@@ -20,7 +26,7 @@ export type EmailProviderConfig = {
 }
 
 export type WhatsAppProviderConfig = {
-  provider?: 'twilio' | 'meta'
+  provider: 'twilio' | 'meta'
   accountSid?: string
   authToken?: string
   from?: string
@@ -29,7 +35,7 @@ export type WhatsAppProviderConfig = {
 }
 
 export type SMSProviderConfig = {
-  provider?: 'twilio'
+  provider: 'twilio'
   accountSid?: string
   authToken?: string
   from?: string
@@ -50,10 +56,31 @@ export type NotificationsPluginOptions = {
   }
   providers?: {
     email?: EmailProviderConfig
-    whatsapp?: WhatsAppProviderConfig
-    sms?: SMSProviderConfig
+    whatsapp?: Partial<WhatsAppProviderConfig>
+    sms?: Partial<SMSProviderConfig>
   }
   rules?: NotificationRule[]
+}
+
+export type NormalizedNotificationsPluginOptions = {
+  enabled: boolean
+  channels: NotificationChannel[]
+  userCollectionSlug: string
+  collections: {
+    notifications: string
+    logs: string
+  }
+  templates: {
+    email?: string
+    whatsapp?: string
+    sms?: string
+  }
+  providers: {
+    email?: EmailProviderConfig
+    whatsapp?: Partial<WhatsAppProviderConfig>
+    sms?: Partial<SMSProviderConfig>
+  }
+  rules: NotificationRule[]
 }
 
 export type NotificationSendInput = {
@@ -61,5 +88,5 @@ export type NotificationSendInput = {
   channel: NotificationChannel
   template: string
   event: string
-  eventPayload?: Record<string, unknown>
+  eventPayload?: NotificationEventPayload
 }

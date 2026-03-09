@@ -8,6 +8,7 @@ import { sendEmailNotification } from '../channels/email'
 import { sendInAppNotification } from '../channels/inapp'
 import { sendSMSNotification } from '../channels/sms'
 import { sendWhatsAppNotification } from '../channels/whatsapp'
+import { evaluateNotificationPolicy } from '../policy/evaluatePolicy'
 
 const isObject = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -44,6 +45,10 @@ export const assertNotificationSendInput = (value: unknown): NotificationSendInp
     template: value.template,
     event: value.event,
     eventPayload: value.eventPayload,
+    classification:
+      value.classification === 'marketing' || value.classification === 'transactional'
+        ? value.classification
+        : undefined,
     idempotencyKey: typeof value.idempotencyKey === 'string' ? value.idempotencyKey : undefined,
   }
 }
@@ -73,6 +78,36 @@ export const sendNotification = async ({
   options: NormalizedNotificationsPluginOptions
 }): Promise<NotificationDispatchResult | void> => {
   const validatedInput = assertNotificationSendInput(input)
+  const user = await payload.findByID({
+    collection: options.userCollectionSlug,
+    id: validatedInput.userId,
+  })
+
+  const policyDecision = await evaluateNotificationPolicy({
+    user: (user || {}) as Record<string, unknown>,
+    input: validatedInput,
+    options,
+  })
+
+  if (!policyDecision.allow) {
+    await payload.create({
+      collection: options.collections.logs,
+      data: {
+        user: validatedInput.userId,
+        event: validatedInput.event,
+        channel: validatedInput.channel,
+        status: 'skipped',
+        template: validatedInput.template,
+        error: policyDecision.reason || 'Notification blocked by policy',
+      },
+    })
+
+    return {
+      channel: validatedInput.channel,
+      status: 'skipped',
+      reason: policyDecision.reason || 'Notification blocked by policy',
+    }
+  }
 
   switch (validatedInput.channel) {
     case 'email':

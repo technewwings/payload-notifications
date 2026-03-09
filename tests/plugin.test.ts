@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'bun:test'
-import { payloadNotifications } from '../src/plugin'
+import { notificationsPlugin } from '../src/plugin'
 
 describe('payload-notifications', () => {
-  it('should export payloadNotifications function', () => {
-    expect(typeof payloadNotifications).toBe('function')
+  it('exports notificationsPlugin function', () => {
+    expect(typeof notificationsPlugin).toBe('function')
   })
 
-  it('should return a config function', () => {
-    const plugin = payloadNotifications({ enabled: true })
+  it('returns a config transformer', () => {
+    const plugin = notificationsPlugin({ enabled: true })
     expect(typeof plugin).toBe('function')
   })
 })

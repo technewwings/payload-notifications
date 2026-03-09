@@ -152,18 +152,19 @@ export const sendNotification = async ({
   const validatedInput = assertNotificationSendInput(input)
   const fingerprint = buildDeliveryFingerprint(validatedInput)
 
-  const existingLogs = typeof (payload as any).find === 'function'
-    ? await (payload as any).find({
-        collection: options.collections.logs,
-        where: {
-          and: [
-            { fingerprint: { equals: fingerprint } },
-            { status: { in: ['sent', 'stored', 'skipped'] } },
-          ],
-        },
-        limit: 1,
-      })
-    : { docs: [] }
+  const existingLogs =
+    typeof (payload as any).find === 'function'
+      ? await (payload as any).find({
+          collection: options.collections.logs,
+          where: {
+            and: [
+              { fingerprint: { equals: fingerprint } },
+              { status: { in: ['sent', 'stored', 'skipped'] } },
+            ],
+          },
+          limit: 1,
+        })
+      : { docs: [] }
 
   if (existingLogs.docs?.length) {
     const result = {
@@ -259,87 +260,76 @@ export const sendNotification = async ({
     template: resolved.definition.body,
   }
 
-  try {
-    let result: NotificationDispatchResult | void
+  let result: NotificationDispatchResult | void
 
-    switch (validatedInput.channel) {
-      case 'email':
-        result = await sendEmailNotification({ payload, input: sendInput, options })
-        break
-      case 'whatsapp':
-        result = await sendWhatsAppNotification({ payload, input: sendInput, options })
-        break
-      case 'sms':
-        result = await sendSMSNotification({ payload, input: sendInput, options })
-        break
-      case 'inapp':
-        result = await sendInAppNotification({ payload, input: sendInput, options })
-        break
-      default:
-        throw new Error(`Unsupported notification channel: ${validatedInput.channel}`)
-    }
+  switch (validatedInput.channel) {
+    case 'email':
+      result = await sendEmailNotification({ payload, input: sendInput, options })
+      break
+    case 'whatsapp':
+      result = await sendWhatsAppNotification({ payload, input: sendInput, options })
+      break
+    case 'sms':
+      result = await sendSMSNotification({ payload, input: sendInput, options })
+      break
+    case 'inapp':
+      result = await sendInAppNotification({ payload, input: sendInput, options })
+      break
+    default:
+      throw new Error(`Unsupported notification channel: ${validatedInput.channel}`)
+  }
 
-    const finalResult =
-      result ||
-      ({
-        channel: validatedInput.channel,
-        status: 'sent',
-      } satisfies NotificationDispatchResult)
+  const finalResult =
+    result ||
+    ({
+      channel: validatedInput.channel,
+      status: 'sent',
+    } satisfies NotificationDispatchResult)
 
+  const channelAlreadyLogged = finalResult.status === 'sent' || finalResult.status === 'stored'
+
+  if (!channelAlreadyLogged) {
     await createLog({
       payload,
       options,
       input: validatedInput,
-      status: finalResult.status === 'stored' ? 'stored' : finalResult.status === 'skipped' ? 'skipped' : 'sent',
+      status: finalResult.status === 'stored' ? 'stored' : finalResult.status === 'skipped' ? 'skipped' : 'failed',
       reason: finalResult.reason,
       fingerprint,
       provider: finalResult.provider,
       providerMessageId: finalResult.providerMessageId,
+      classification:
+        finalResult.status === 'failed' && finalResult.reason
+          ? classifyDispatchFailure(finalResult.reason).classification
+          : undefined,
     })
-
-    await emitObservability({
-      options,
-      input: validatedInput,
-      result: finalResult,
-      fingerprint,
-    })
-
-    return finalResult
-  } catch (error) {
-    const failure = classifyDispatchFailure(error)
-
-    await createLog({
-      payload,
-      options,
-      input: validatedInput,
-      status: 'failed',
-      reason: failure.message,
-      fingerprint,
-      classification: failure.classification,
-    })
-
-    await emitObservability({
-      options,
-      input: validatedInput,
-      result: {
-        channel: validatedInput.channel,
-        status: 'failed',
-        reason: failure.message,
-      },
-      fingerprint,
-      classification: failure.classification,
-    })
-
-    if (failure.classification === 'retriable' && (validatedInput.attempt ?? 1) < 3) {
-      await payload.jobs.queue({
-        task: 'notification:send',
-        input: {
-          ...validatedInput,
-          attempt: (validatedInput.attempt ?? 1) + 1,
-        },
-      })
-    }
-
-    throw error
   }
+
+  await emitObservability({
+    options,
+    input: validatedInput,
+    result: finalResult,
+    fingerprint,
+    classification:
+      finalResult.status === 'failed' && finalResult.reason
+        ? classifyDispatchFailure(finalResult.reason).classification
+        : undefined,
+  })
+
+  if (
+    finalResult.status === 'failed' &&
+    finalResult.reason &&
+    classifyDispatchFailure(finalResult.reason).classification === 'retriable' &&
+    (validatedInput.attempt ?? 1) < 3
+  ) {
+    await payload.jobs.queue({
+      task: 'notification:send',
+      input: {
+        ...validatedInput,
+        attempt: (validatedInput.attempt ?? 1) + 1,
+      },
+    })
+  }
+
+  return finalResult
 }

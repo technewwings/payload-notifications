@@ -27,11 +27,14 @@ describe('sendNotification reliability behaviors', () => {
     expect(result?.reason).toContain('Duplicate notification')
   })
 
-  it('requeues retriable failures up to a max attempt count', async () => {
+  it('requeues retriable failures when channel result indicates a retriable error', async () => {
     const payload = {
       find: mock(async () => ({ docs: [] })),
       findByID: mock(async () => ({ id: 'user_1', email: 'user@example.com' })),
       create: mock(async () => ({})),
+      sendEmail: mock(async () => {
+        throw new Error('Provider timeout while sending')
+      }),
       jobs: { queue: mock(async () => ({})) },
     } as any
 
@@ -44,33 +47,22 @@ describe('sendNotification reliability behaviors', () => {
           from: '+10000000000',
         },
       },
-      templates: {
-        registry: {
-          'order.paid': {
-            email: {
-              subject: 'Order {{ payload.orderId }} paid',
-              body: 'Provider timeout while sending',
-            },
-          },
-        },
-      },
     })
 
-    await expect(
-      sendNotification({
-        payload,
-        input: {
-          userId: 'user_1',
-          channel: 'email',
-          template: 'order.paid',
-          event: 'order.paid',
-          attempt: 1,
-        },
-        options,
-      }),
-    ).rejects.toThrow('Provider timeout while sending')
+    const result = await sendNotification({
+      payload,
+      input: {
+        userId: 'user_1',
+        channel: 'email',
+        template: 'order.paid',
+        event: 'order.paid',
+        attempt: 1,
+      },
+      options,
+    })
 
-    expect(payload.jobs.queue).toHaveBeenCalled()
+    expect(result?.status).toBe('failed')
+    expect(payload.jobs.queue).toHaveBeenCalledTimes(1)
   })
 
   it('emits observability events through the configured hook', async () => {

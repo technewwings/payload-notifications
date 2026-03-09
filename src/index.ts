@@ -38,7 +38,10 @@ export type {
   WhatsAppProviderConfig,
   WhatsAppProviderSendInput,
 } from './types'
-export { NotificationsCollection, buildNotificationMetaField } from './collections/Notifications'
+export {
+  NotificationsCollection,
+  buildNotificationMetaField,
+} from './collections/Notifications'
 export type { NotificationsCollectionOverrides } from './collections/Notifications'
 export {
   NotificationLogsCollection,
@@ -59,6 +62,16 @@ export {
 export { evaluateNotificationPolicy } from './policy/evaluatePolicy'
 export { createSMSProvider } from './providers/sms'
 export { createWhatsAppProvider } from './providers/whatsapp'
+export type {
+  DispatchFailureClassification,
+  DispatchFailureInfo,
+  ObservabilityEvent,
+} from './reliability'
+export {
+  buildDeliveryFingerprint,
+  classifyDispatchFailure,
+  createObservabilityEvent,
+} from './reliability'
 export { buildCommonEventContext, buildTemplateContext, getContextValue } from './templates/context'
 export { renderTemplate } from './templates/render'
 export { resolveTemplate } from './templates/resolve'

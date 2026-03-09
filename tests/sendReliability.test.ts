@@ -32,9 +32,6 @@ describe('sendNotification reliability behaviors', () => {
       find: mock(async () => ({ docs: [] })),
       findByID: mock(async () => ({ id: 'user_1', email: 'user@example.com' })),
       create: mock(async () => ({})),
-      sendEmail: mock(async () => {
-        throw new Error('Provider timeout while sending')
-      }),
       jobs: { queue: mock(async () => ({})) },
     } as any
 
@@ -47,6 +44,16 @@ describe('sendNotification reliability behaviors', () => {
           from: '+10000000000',
         },
       },
+      templates: {
+        registry: {
+          'order.paid': {
+            email: {
+              subject: 'Order {{ payload.orderId }} paid',
+              body: '{{ payload.timeoutMessage }}',
+            },
+          },
+        },
+      },
     })
 
     const result = await sendNotification({
@@ -56,6 +63,9 @@ describe('sendNotification reliability behaviors', () => {
         channel: 'email',
         template: 'order.paid',
         event: 'order.paid',
+        eventPayload: {
+          timeoutMessage: 'Provider timeout while sending',
+        },
         attempt: 1,
       },
       options,

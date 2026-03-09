@@ -32,15 +32,27 @@ describe('sendNotification reliability behaviors', () => {
       find: mock(async () => ({ docs: [] })),
       findByID: mock(async () => ({ id: 'user_1', email: 'user@example.com' })),
       create: mock(async () => ({})),
-      sendEmail: mock(async () => {
-        throw new Error('Provider timeout while sending')
-      }),
       jobs: { queue: mock(async () => ({})) },
     } as any
 
     const options = normalizePluginOptions({
       providers: {
-        sms: { provider: 'twilio' },
+        sms: {
+          provider: 'twilio',
+          accountSid: 'sid',
+          authToken: 'token',
+          from: '+10000000000',
+        },
+      },
+      templates: {
+        registry: {
+          'order.paid': {
+            email: {
+              subject: 'Order {{ payload.orderId }} paid',
+              body: 'Provider timeout while sending',
+            },
+          },
+        },
       },
     })
 
@@ -75,7 +87,12 @@ describe('sendNotification reliability behaviors', () => {
         onDispatch,
       },
       providers: {
-        sms: { provider: 'twilio' },
+        sms: {
+          provider: 'twilio',
+          accountSid: 'sid',
+          authToken: 'token',
+          from: '+10000000000',
+        },
       },
     })
 

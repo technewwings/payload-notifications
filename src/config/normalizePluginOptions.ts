@@ -11,13 +11,46 @@ const DEFAULT_CHANNELS: NormalizedNotificationsPluginOptions['channels'] = [
 export const normalizePluginOptions = (
   options: NotificationsPluginOptions = {},
 ): NormalizedNotificationsPluginOptions => {
+  const userProvidedChannels = options.channels !== undefined
+
+  const channels =
+    userProvidedChannels && options.channels?.length
+      ? [...new Set(options.channels)]
+      : DEFAULT_CHANNELS
+
+  const notificationsSlug = options.collections?.notifications || 'notifications'
+  const logsSlug = options.collections?.logs || 'notification-logs'
+
+  if (notificationsSlug === logsSlug) {
+    throw new Error('notifications and logs collections must use different slugs')
+  }
+
+  if (
+    userProvidedChannels &&
+    channels.includes('whatsapp') &&
+    !options.providers?.whatsapp?.provider
+  ) {
+    throw new Error('providers.whatsapp.provider is required')
+  }
+
+  if (
+    userProvidedChannels &&
+    channels.includes('sms') &&
+    options.providers?.sms?.provider === 'twilio'
+  ) {
+    const smsConfig = options.providers.sms
+    if (!smsConfig.accountSid || !smsConfig.authToken || !smsConfig.from) {
+      throw new Error('Twilio SMS requires accountSid, authToken, and from')
+    }
+  }
+
   return {
     enabled: options.enabled ?? true,
-    channels: options.channels?.length ? options.channels : DEFAULT_CHANNELS,
+    channels,
     userCollectionSlug: options.userCollectionSlug || 'users',
     collections: {
-      notifications: options.collections?.notifications || 'notifications',
-      logs: options.collections?.logs || 'notification-logs',
+      notifications: notificationsSlug,
+      logs: logsSlug,
     },
     templates: {
       email: options.templates?.email,
@@ -50,10 +83,6 @@ export const normalizePluginOptions = (
   }
 }
 
-/**
- * Validates an externally constructed NormalizedNotificationsPluginOptions object.
- * Use this when manually building options outside of normalizePluginOptions().
- */
 export const validateNormalizedOptions = (
   options: NormalizedNotificationsPluginOptions,
 ): NormalizedNotificationsPluginOptions => {

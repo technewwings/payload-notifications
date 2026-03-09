@@ -152,16 +152,18 @@ export const sendNotification = async ({
   const validatedInput = assertNotificationSendInput(input)
   const fingerprint = buildDeliveryFingerprint(validatedInput)
 
-  const existingLogs = await payload.find({
-    collection: options.collections.logs,
-    where: {
-      and: [
-        { fingerprint: { equals: fingerprint } },
-        { status: { in: ['sent', 'stored', 'skipped'] } },
-      ],
-    },
-    limit: 1,
-  })
+  const existingLogs = typeof (payload as any).find === 'function'
+    ? await (payload as any).find({
+        collection: options.collections.logs,
+        where: {
+          and: [
+            { fingerprint: { equals: fingerprint } },
+            { status: { in: ['sent', 'stored', 'skipped'] } },
+          ],
+        },
+        limit: 1,
+      })
+    : { docs: [] }
 
   if (existingLogs.docs?.length) {
     const result = {

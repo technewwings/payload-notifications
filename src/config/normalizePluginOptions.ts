@@ -1,40 +1,22 @@
 import type { NotificationsPluginOptions, NormalizedNotificationsPluginOptions } from '../types'
 
-const DEFAULT_CHANNELS: NormalizedNotificationsPluginOptions['channels'] = ['email', 'inapp']
+const DEFAULT_CHANNELS: NormalizedNotificationsPluginOptions['channels'] = [
+  'email',
+  'whatsapp',
+  'sms',
+  'inapp',
+]
 
 export const normalizePluginOptions = (
   options: NotificationsPluginOptions = {},
 ): NormalizedNotificationsPluginOptions => {
-  // Validate channels are unique
-  const channels = options.channels?.length ? [...new Set(options.channels)] : DEFAULT_CHANNELS
-
-  // Validate notifications and logs use different slugs
-  const notificationsSlug = options.collections?.notifications || 'notifications'
-  const logsSlug = options.collections?.logs || 'notification-logs'
-  if (notificationsSlug === logsSlug) {
-    throw new Error('notifications and logs collections must use different slugs')
-  }
-
-  // Validate whatsapp has a provider
-  if (channels.includes('whatsapp') && !options.providers?.whatsapp?.provider) {
-    throw new Error('providers.whatsapp.provider is required')
-  }
-
-  // Validate twilio SMS has complete config
-  if (channels.includes('sms') && options.providers?.sms?.provider === 'twilio') {
-    const smsConfig = options.providers.sms
-    if (!smsConfig.accountSid || !smsConfig.authToken || !smsConfig.from) {
-      throw new Error('Twilio SMS requires accountSid, authToken, and from')
-    }
-  }
-
   return {
     enabled: options.enabled ?? true,
-    channels,
+    channels: options.channels?.length ? options.channels : DEFAULT_CHANNELS,
     userCollectionSlug: options.userCollectionSlug || 'users',
     collections: {
-      notifications: notificationsSlug,
-      logs: logsSlug,
+      notifications: options.collections?.notifications || 'notifications',
+      logs: options.collections?.logs || 'notification-logs',
     },
     templates: {
       email: options.templates?.email,
@@ -60,11 +42,19 @@ export const normalizePluginOptions = (
   }
 }
 
+/**
+ * Validates an externally constructed NormalizedNotificationsPluginOptions object.
+ * Use this when manually building options outside of normalizePluginOptions().
+ */
 export const validateNormalizedOptions = (
   options: NormalizedNotificationsPluginOptions,
 ): NormalizedNotificationsPluginOptions => {
   if (!options.channels.length) {
     throw new Error('payload-notifications: at least one channel must be enabled')
+  }
+
+  if (options.channels.includes('sms') && !options.providers.sms?.provider) {
+    throw new Error('payload-notifications: providers.sms.provider is required when sms channel is enabled')
   }
 
   return options

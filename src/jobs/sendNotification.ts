@@ -83,8 +83,28 @@ export const sendNotification = async ({
     id: validatedInput.userId,
   })
 
+  if (!user) {
+    await payload.create({
+      collection: options.collections.logs,
+      data: {
+        user: validatedInput.userId,
+        event: validatedInput.event,
+        channel: validatedInput.channel,
+        status: 'failed',
+        template: validatedInput.template,
+        error: 'User not found',
+      },
+    })
+
+    return {
+      channel: validatedInput.channel,
+      status: 'failed',
+      reason: 'User not found',
+    }
+  }
+
   const policyDecision = await evaluateNotificationPolicy({
-    user: (user || {}) as Record<string, unknown>,
+    user: user as Record<string, unknown>,
     input: validatedInput,
     options,
   })
@@ -98,7 +118,7 @@ export const sendNotification = async ({
         channel: validatedInput.channel,
         status: 'skipped',
         template: validatedInput.template,
-        error: policyDecision.reason || 'Notification blocked by policy',
+        reason: policyDecision.reason || 'Notification blocked by policy',
       },
     })
 

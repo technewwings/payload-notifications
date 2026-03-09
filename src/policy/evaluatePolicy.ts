@@ -1,7 +1,6 @@
 import type {
   NormalizedNotificationsPluginOptions,
   NotificationChannel,
-  NotificationClassification,
   NotificationPolicyDecision,
   NotificationSendInput,
 } from '../types'
@@ -59,7 +58,7 @@ export const evaluateNotificationPolicy = async ({
     }
   }
 
-  if ((input.classification as NotificationClassification | undefined) === 'marketing') {
+  if (input.classification === 'marketing') {
     if (!hasMarketingConsent({ user, options })) {
       return {
         allow: false,

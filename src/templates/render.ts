@@ -3,7 +3,24 @@ import type { NotificationTemplateContext, NotificationTemplateRenderer } from '
 const stringifyValue = (value: unknown): string => {
   if (typeof value === 'string') return value
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
-  return JSON.stringify(value)
+  if (typeof value === 'bigint') return value.toString()
+  if (typeof value === 'undefined') return ''
+  if (typeof value === 'function' || typeof value === 'symbol') return String(value)
+
+  try {
+    return JSON.stringify(value) ?? ''
+  } catch {
+    return '[unserializable]'
+  }
+}
+
+const escapeHtml = (value: string): string => {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 const replaceTokens = (template: string, context: NotificationTemplateContext): string => {
@@ -28,7 +45,7 @@ export const renderTemplate: NotificationTemplateRenderer = async (template, con
   return {
     subject: `Notification: ${context.event}`,
     text: rendered,
-    html: `<p>${rendered}</p>`,
+    html: `<p>${escapeHtml(rendered)}</p>`,
     meta: {
       template,
     },

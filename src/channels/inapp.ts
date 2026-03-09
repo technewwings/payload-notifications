@@ -45,17 +45,21 @@ export const sendInAppNotification = async ({
   } catch (error) {
     const message = error instanceof Error ? error.message : 'In-app notification store failed'
 
-    await payload.create({
-      collection: options.collections.logs,
-      data: {
-        user: input.userId,
-        event: input.event,
-        channel: 'inapp',
-        status: 'failed',
-        template: input.template,
-        error: message,
-      },
-    })
+    try {
+      await payload.create({
+        collection: options.collections.logs,
+        data: {
+          user: input.userId,
+          event: input.event,
+          channel: 'inapp',
+          status: 'failed',
+          template: input.template,
+          error: message,
+        },
+      })
+    } catch {
+      // Best-effort failure logging
+    }
 
     return {
       channel: 'inapp',

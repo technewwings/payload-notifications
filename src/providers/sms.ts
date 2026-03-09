@@ -5,6 +5,10 @@ import type {
   SMSProviderSendInput,
 } from '../types'
 
+const createMessageId = (provider: string, channel: string, event: string): string => {
+  return `${provider}-${channel}-${event}-${Date.now()}`
+}
+
 export const createSMSProvider = (
   options: NormalizedNotificationsPluginOptions,
 ): SMSProviderAdapter => {
@@ -14,7 +18,7 @@ export const createSMSProvider = (
 
       return {
         provider,
-        messageId: `${provider}-sms-${input.context.event}`,
+        messageId: createMessageId(provider, 'sms', input.context.event),
         response: {
           to: input.to,
           template: input.template,

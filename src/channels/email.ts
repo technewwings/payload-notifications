@@ -47,7 +47,32 @@ export const sendEmailNotification = async ({
     payload: input.eventPayload,
   }
 
-  const rendered = await renderTemplate(input.template, context)
+  let rendered
+
+  try {
+    rendered = await renderTemplate(input.template, context)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Template rendering failed'
+
+    await payload.create({
+      collection: options.collections.logs,
+      data: {
+        user: input.userId,
+        event: input.event,
+        channel: 'email',
+        status: 'failed',
+        template: input.template,
+        error: message,
+      },
+    })
+
+    return {
+      channel: 'email',
+      status: 'failed',
+      reason: message,
+      provider: 'payload-email',
+    }
+  }
 
   try {
     await payload.sendEmail({

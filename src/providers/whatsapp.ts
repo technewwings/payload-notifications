@@ -5,6 +5,10 @@ import type {
   WhatsAppProviderSendInput,
 } from '../types'
 
+const createMessageId = (provider: string, channel: string, event: string): string => {
+  return `${provider}-${channel}-${event}-${Date.now()}`
+}
+
 export const createWhatsAppProvider = (
   options: NormalizedNotificationsPluginOptions,
 ): WhatsAppProviderAdapter => {
@@ -14,7 +18,7 @@ export const createWhatsAppProvider = (
 
       return {
         provider,
-        messageId: `${provider}-whatsapp-${input.context.event}`,
+        messageId: createMessageId(provider, 'whatsapp', input.context.event),
         response: {
           to: input.to,
           template: input.template,

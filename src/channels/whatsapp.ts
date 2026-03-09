@@ -16,7 +16,6 @@ export const sendWhatsAppNotification = async ({
   input: NotificationSendInput
   options: NormalizedNotificationsPluginOptions
 }): Promise<NotificationDispatchResult> => {
-  const provider = createWhatsAppProvider(options)
   const user = await payload.findByID({
     collection: options.userCollectionSlug,
     id: input.userId,
@@ -43,6 +42,7 @@ export const sendWhatsAppNotification = async ({
     }
   }
 
+  const provider = createWhatsAppProvider(options)
   const context: NotificationTemplateContext = {
     event: input.event,
     userId: input.userId,
@@ -66,7 +66,7 @@ export const sendWhatsAppNotification = async ({
         template: input.template,
         providerResponse: {
           provider: result.provider,
-          messageID: result.messageId,
+          messageId: result.messageId,
           raw: result.response,
         },
       },

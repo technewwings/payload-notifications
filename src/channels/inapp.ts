@@ -3,23 +3,46 @@ import type {
   NormalizedNotificationsPluginOptions,
   NotificationDispatchResult,
   NotificationSendInput,
+  NotificationTemplateContext,
+  NotificationTemplateDefinition,
 } from '../types'
+import { renderTemplate } from '../templates/render'
 
 export const sendInAppNotification = async ({
   payload,
   input,
   options,
+  resolvedDefinition,
 }: {
   payload: Payload
   input: NotificationSendInput
   options: NormalizedNotificationsPluginOptions
+  resolvedDefinition?: NotificationTemplateDefinition
 }): Promise<NotificationDispatchResult> => {
   try {
+    const context: NotificationTemplateContext = {
+      event: input.event,
+      userId: input.userId,
+      payload: input.eventPayload,
+    }
+
+    let title = `Notification: ${input.event}`
+    let message = input.template
+
+    if (resolvedDefinition) {
+      if (resolvedDefinition.title) {
+        title = (await renderTemplate(resolvedDefinition.title, context)).text || title
+      }
+      if (resolvedDefinition.body) {
+        message = (await renderTemplate(resolvedDefinition.body, context)).text || message
+      }
+    }
+
     await payload.create({
       collection: options.collections.notifications,
       data: {
-        title: `Notification for ${input.event}`,
-        message: `Template ${input.template} stored for ${input.event}`,
+        title,
+        message,
         recipient: input.userId,
         meta: {
           data: input.eventPayload,

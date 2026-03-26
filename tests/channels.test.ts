@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, mock, afterEach } from 'bun:test'
 import { sendEmailNotification } from '../src/channels/email'
 import { sendInAppNotification } from '../src/channels/inapp'
 import { sendSMSNotification } from '../src/channels/sms'
@@ -9,6 +9,20 @@ type MockPayload = {
   findByID?: ReturnType<typeof mock>
   sendEmail?: ReturnType<typeof mock>
   create: ReturnType<typeof mock>
+}
+
+const originalFetch = globalThis.fetch
+
+afterEach(() => {
+  globalThis.fetch = originalFetch
+})
+
+const createMockFetch = (responseBody: unknown, status = 200) => {
+  return mock(async () => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => responseBody,
+  })) as unknown as typeof fetch
 }
 
 const createMockPayload = (overrides: Partial<MockPayload> = {}) => {
@@ -121,6 +135,11 @@ describe('channel implementations', () => {
   })
 
   it('returns failed whatsapp result when provider send throws', async () => {
+    globalThis.fetch = createMockFetch(
+      { error: { message: 'Provider unavailable', type: 'ServerError', code: 500 } },
+      500,
+    )
+
     const payload = createMockPayload({
       findByID: mock(async () => ({ id: 'user_1', phone: '+15550000000' })),
       create: mock(async () => undefined),
@@ -131,14 +150,11 @@ describe('channel implementations', () => {
       providers: {
         whatsapp: {
           provider: 'meta',
+          accessToken: 'test-token',
+          phoneNumberId: '123456',
         },
       },
     })
-
-    const original = Date.now
-    Date.now = () => {
-      throw new Error('Provider unavailable')
-    }
 
     const result = await sendWhatsAppNotification({
       payload: payload as never,
@@ -151,14 +167,19 @@ describe('channel implementations', () => {
       options,
     })
 
-    Date.now = original
-
     expect(result.status).toBe('failed')
     expect(result.reason).toBe('Provider unavailable')
     expect(payload.create).toHaveBeenCalledTimes(1)
   })
 
   it('returns sent sms result with provider metadata', async () => {
+    globalThis.fetch = createMockFetch({
+      sid: 'SM12345',
+      status: 'queued',
+      to: '+15550000000',
+      from: '+15551111111',
+    })
+
     const payload = createMockPayload({
       findByID: mock(async () => ({ id: 'user_1', phone: '+15550000000' })),
       create: mock(async () => undefined),
@@ -206,6 +227,14 @@ describe('channel implementations', () => {
       },
       options: normalizePluginOptions({
         channels: ['sms'],
+        providers: {
+          sms: {
+            provider: 'twilio',
+            accountSid: 'sid',
+            authToken: 'token',
+            from: '+15551111111',
+          },
+        },
       }),
     })
 
@@ -214,15 +243,15 @@ describe('channel implementations', () => {
   })
 
   it('returns failed sms result when provider send throws', async () => {
+    globalThis.fetch = createMockFetch(
+      { error_code: 20003, error_message: 'SMS provider unavailable' },
+      503,
+    )
+
     const payload = createMockPayload({
       findByID: mock(async () => ({ id: 'user_1', phone: '+15550000000' })),
       create: mock(async () => undefined),
     })
-
-    const original = Date.now
-    Date.now = () => {
-      throw new Error('SMS provider unavailable')
-    }
 
     const result = await sendSMSNotification({
       payload: payload as never,
@@ -234,19 +263,29 @@ describe('channel implementations', () => {
       },
       options: normalizePluginOptions({
         channels: ['sms'],
+        providers: {
+          sms: {
+            provider: 'twilio',
+            accountSid: 'sid',
+            authToken: 'token',
+            from: '+15551111111',
+          },
+        },
       }),
     })
-
-    Date.now = original
 
     expect(result.status).toBe('failed')
     expect(result.reason).toBe('SMS provider unavailable')
     expect(payload.create).toHaveBeenCalledTimes(1)
   })
 
-  it('stores in-app notifications and returns stored result', async () => {
+  it('stores in-app notifications with resolved template and returns stored result', async () => {
+    const createCalls: any[] = []
     const payload = createMockPayload({
-      create: mock(async () => undefined),
+      create: mock(async (args: any) => {
+        createCalls.push(args)
+        return undefined
+      }),
     })
 
     const result = await sendInAppNotification({
@@ -254,14 +293,49 @@ describe('channel implementations', () => {
       input: {
         userId: 'user_1',
         channel: 'inapp',
-        template: 'order-paid',
+        template: 'order.paid',
+        event: 'order.paid',
+        eventPayload: { orderId: 'ORD-789' },
+      },
+      options: normalizePluginOptions(),
+      resolvedDefinition: {
+        title: 'Order paid',
+        body: 'Order {{ payload.orderId }} is now marked as paid.',
+      },
+    })
+
+    expect(result.status).toBe('stored')
+    expect(payload.create).toHaveBeenCalledTimes(2)
+    // Verify the notification record has the resolved content
+    const notifData = createCalls[0]?.data
+    expect(notifData.title).toBe('Order paid')
+    expect(notifData.message).toBe('Order ORD-789 is now marked as paid.')
+  })
+
+  it('stores in-app with generic fallback when no resolvedDefinition', async () => {
+    const createCalls: any[] = []
+    const payload = createMockPayload({
+      create: mock(async (args: any) => {
+        createCalls.push(args)
+        return undefined
+      }),
+    })
+
+    const result = await sendInAppNotification({
+      payload: payload as never,
+      input: {
+        userId: 'user_1',
+        channel: 'inapp',
+        template: 'some-template',
         event: 'order.paid',
       },
       options: normalizePluginOptions(),
     })
 
     expect(result.status).toBe('stored')
-    expect(payload.create).toHaveBeenCalledTimes(2)
+    const notifData = createCalls[0]?.data
+    expect(notifData.title).toBe('Notification: order.paid')
+    expect(notifData.message).toBe('some-template')
   })
 
   it('returns failed in-app result when create throws', async () => {

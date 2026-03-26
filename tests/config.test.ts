@@ -6,7 +6,7 @@ describe('normalizePluginOptions', () => {
     const normalized = normalizePluginOptions()
 
     expect(normalized.enabled).toBe(true)
-    expect(normalized.channels).toEqual(['email', 'whatsapp', 'sms', 'inapp'])
+    expect(normalized.channels).toEqual(['email', 'inapp'])
     expect(normalized.userCollectionSlug).toBe('users')
     expect(normalized.collections.notifications).toBe('notifications')
     expect(normalized.collections.logs).toBe('notification-logs')
@@ -45,7 +45,7 @@ describe('normalizePluginOptions', () => {
           logs: 'same',
         },
       }),
-    ).toThrow('notifications and logs collections must use different slugs')
+    ).toThrow('payload-notifications: notifications and logs collections must use different slugs')
   })
 
   it('throws when whatsapp is enabled without provider', () => {
@@ -53,7 +53,19 @@ describe('normalizePluginOptions', () => {
       normalizePluginOptions({
         channels: ['whatsapp'],
       }),
-    ).toThrow('providers.whatsapp.provider is required')
+    ).toThrow(
+      'payload-notifications: providers.whatsapp.provider is required when whatsapp channel is enabled',
+    )
+  })
+
+  it('throws when sms is enabled without provider', () => {
+    expect(() =>
+      normalizePluginOptions({
+        channels: ['sms'],
+      }),
+    ).toThrow(
+      'payload-notifications: providers.sms.provider is required when sms channel is enabled',
+    )
   })
 
   it('throws when sms twilio config is incomplete', () => {
@@ -67,6 +79,22 @@ describe('normalizePluginOptions', () => {
           },
         },
       }),
-    ).toThrow('Twilio SMS requires accountSid, authToken, and from')
+    ).toThrow('payload-notifications: Twilio SMS requires accountSid, authToken, and from')
+  })
+
+  it('throws for unknown channels', () => {
+    expect(() =>
+      normalizePluginOptions({
+        channels: ['pigeon' as any],
+      }),
+    ).toThrow('payload-notifications: unknown channel "pigeon"')
+  })
+
+  it('throws for empty channels array', () => {
+    expect(() =>
+      normalizePluginOptions({
+        channels: [],
+      }),
+    ).toThrow('payload-notifications: at least one channel must be enabled')
   })
 })

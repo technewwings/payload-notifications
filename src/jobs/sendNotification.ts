@@ -255,25 +255,31 @@ export const sendNotification = async ({
     options,
   })
 
-  const sendInput = {
-    ...validatedInput,
-    template: resolved.definition.body,
-  }
-
   let result: NotificationDispatchResult | void
 
   switch (validatedInput.channel) {
-    case 'email':
+    case 'email': {
+      const sendInput = { ...validatedInput, template: resolved.definition.body }
       result = await sendEmailNotification({ payload, input: sendInput, options })
       break
-    case 'whatsapp':
+    }
+    case 'whatsapp': {
+      const sendInput = { ...validatedInput, template: resolved.definition.body }
       result = await sendWhatsAppNotification({ payload, input: sendInput, options })
       break
-    case 'sms':
+    }
+    case 'sms': {
+      const sendInput = { ...validatedInput, template: resolved.definition.body }
       result = await sendSMSNotification({ payload, input: sendInput, options })
       break
+    }
     case 'inapp':
-      result = await sendInAppNotification({ payload, input: sendInput, options })
+      result = await sendInAppNotification({
+        payload,
+        input: validatedInput,
+        options,
+        resolvedDefinition: resolved.definition,
+      })
       break
     default:
       throw new Error(`Unsupported notification channel: ${validatedInput.channel}`)

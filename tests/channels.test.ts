@@ -206,6 +206,14 @@ describe('channel implementations', () => {
       },
       options: normalizePluginOptions({
         channels: ['sms'],
+        providers: {
+          sms: {
+            provider: 'twilio',
+            accountSid: 'sid',
+            authToken: 'token',
+            from: '+15551111111',
+          },
+        },
       }),
     })
 
@@ -234,6 +242,14 @@ describe('channel implementations', () => {
       },
       options: normalizePluginOptions({
         channels: ['sms'],
+        providers: {
+          sms: {
+            provider: 'twilio',
+            accountSid: 'sid',
+            authToken: 'token',
+            from: '+15551111111',
+          },
+        },
       }),
     })
 
@@ -244,9 +260,13 @@ describe('channel implementations', () => {
     expect(payload.create).toHaveBeenCalledTimes(1)
   })
 
-  it('stores in-app notifications and returns stored result', async () => {
+  it('stores in-app notifications with resolved template and returns stored result', async () => {
+    const createCalls: any[] = []
     const payload = createMockPayload({
-      create: mock(async () => undefined),
+      create: mock(async (args: any) => {
+        createCalls.push(args)
+        return undefined
+      }),
     })
 
     const result = await sendInAppNotification({
@@ -254,14 +274,49 @@ describe('channel implementations', () => {
       input: {
         userId: 'user_1',
         channel: 'inapp',
-        template: 'order-paid',
+        template: 'order.paid',
+        event: 'order.paid',
+        eventPayload: { orderId: 'ORD-789' },
+      },
+      options: normalizePluginOptions(),
+      resolvedDefinition: {
+        title: 'Order paid',
+        body: 'Order {{ payload.orderId }} is now marked as paid.',
+      },
+    })
+
+    expect(result.status).toBe('stored')
+    expect(payload.create).toHaveBeenCalledTimes(2)
+    // Verify the notification record has the resolved content
+    const notifData = createCalls[0]?.data
+    expect(notifData.title).toBe('Order paid')
+    expect(notifData.message).toBe('Order ORD-789 is now marked as paid.')
+  })
+
+  it('stores in-app with generic fallback when no resolvedDefinition', async () => {
+    const createCalls: any[] = []
+    const payload = createMockPayload({
+      create: mock(async (args: any) => {
+        createCalls.push(args)
+        return undefined
+      }),
+    })
+
+    const result = await sendInAppNotification({
+      payload: payload as never,
+      input: {
+        userId: 'user_1',
+        channel: 'inapp',
+        template: 'some-template',
         event: 'order.paid',
       },
       options: normalizePluginOptions(),
     })
 
     expect(result.status).toBe('stored')
-    expect(payload.create).toHaveBeenCalledTimes(2)
+    const notifData = createCalls[0]?.data
+    expect(notifData.title).toBe('Notification: order.paid')
+    expect(notifData.message).toBe('some-template')
   })
 
   it('returns failed in-app result when create throws', async () => {

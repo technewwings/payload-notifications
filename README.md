@@ -5,10 +5,11 @@ Production-ready notifications plugin for Payload CMS with an event-driven, mult
 ## Features
 - Event-to-rule notification dispatch through Payload jobs
 - Channel implementations for email, WhatsApp, SMS, and in-app notifications
-- Delivery log persistence and in-app notification storage
+- Delivery log persistence and in-app notification storage with resolved template content
 - Template registry and resolution utilities with starter transactional templates
 - Preference mapping, consent enforcement, and custom policy hooks
 - Reliability helpers for idempotency, retry classification, retry-safe dispatch behavior, and observability hooks
+- Fail-fast configuration validation with clear error messages
 - Bun-based test suite, contributor guidance, CI expectations, and release-readiness docs
 
 ## Installation
@@ -20,12 +21,43 @@ bun add @wtree/payload-notifications
 ```ts
 import { notificationsPlugin } from '@wtree/payload-notifications'
 
-export default notificationsPlugin({
+export default buildConfig({
+  plugins: [
+    notificationsPlugin({
+      channels: ['email', 'inapp'],
+      providers: {
+        email: {
+          defaultFromAddress: 'noreply@example.com',
+        },
+      },
+      rules: [
+        {
+          event: 'order.paid',
+          channels: ['email', 'inapp'],
+          template: 'order.paid',
+        },
+      ],
+      observability: {
+        onDispatch: async (event) => {
+          console.info(event)
+        },
+      },
+    }),
+  ],
+})
+```
+
+## Configuration
+### Channels
+
+Default channels: `['email', 'inapp']`. These work out of the box with Payload's built-in email adapter and the notifications collection.
+
+To enable SMS or WhatsApp, you must explicitly add them and provide provider credentials:
+
+```ts
+notificationsPlugin({
   channels: ['email', 'sms', 'inapp'],
   providers: {
-    email: {
-      defaultFromAddress: 'noreply@example.com',
-    },
     sms: {
       provider: 'twilio',
       accountSid: process.env.TWILIO_ACCOUNT_SID,
@@ -33,34 +65,24 @@ export default notificationsPlugin({
       from: process.env.TWILIO_SMS_FROM,
     },
   },
-  observability: {
-    onDispatch: async (event) => {
-      console.info(event)
-    },
-  },
-  templates: {
-    registry: {
-      'order.paid': {
-        email: {
-          subject: 'Order {{ payload.orderId }} paid',
-          body: 'Hi {{ userId }}, order {{ payload.orderId }} is now paid.',
-        },
-        sms: 'Order {{ payload.orderId }} is paid.',
-      },
-    },
-  },
 })
 ```
 
-## Configuration
-### Channels
-- `email`
-- `whatsapp`
-- `sms`
-- `inapp`
+Available channels: `email`, `whatsapp`, `sms`, `inapp`.
+
+### Jobs processing
+
+The plugin registers two Payload job tasks automatically:
+
+- `notification:process-event` — routes events to matching rules and queues per-channel sends
+- `notification:send` — dispatches individual notifications to channels
+
+Task handlers are wired up via the plugin's `onInit` hook and work out of the box. No host-app overrides are required.
+
+**Serverless environments:** Payload's job runner processes queued tasks. In serverless deployments (Vercel, AWS Lambda), you may need to configure an external job runner or use Payload's `autoRunJobs` option to ensure background tasks execute. See Payload's [jobs documentation](https://payloadcms.com/docs/jobs-queue/overview) for platform-specific guidance.
 
 ### Template registry
-Templates resolve by event key and channel, and can be overridden without modifying core internals.
+Templates resolve by event key and channel, and can be overridden without modifying core internals. In-app notifications persist the resolved and token-replaced `title` and `body` from the template definition.
 
 ```ts
 const config = {
@@ -71,12 +93,18 @@ const config = {
           subject: 'Order {{ payload.orderId }} shipped',
           body: 'Tracking: {{ payload.trackingNumber }}',
         },
+        inapp: {
+          title: 'Order shipped',
+          body: 'Order {{ payload.orderId }} has shipped.',
+        },
         whatsapp: 'Order {{ payload.orderId }} shipped. Tracking {{ payload.trackingNumber }}.',
       },
     },
   },
 }
 ```
+
+Supported tokens: `{{ event }}`, `{{ userId }}`, `{{ payload.key }}` (supports dot-notation for nested values).
 
 ### Preferences, policy, and observability
 ```ts
@@ -124,7 +152,22 @@ Starter templates are included for:
 - `order.shipped`
 - `auth.magic-link`
 
-## Migration
+## SMS and WhatsApp providers
+
+SMS and WhatsApp channels currently use mock provider adapters that return deterministic message IDs. Real Twilio and Meta integrations are planned for a follow-up release. The adapter pattern (`createSMSProvider`, `createWhatsAppProvider`) is ready for drop-in replacement.
+
+## Migration from 0.1.x
+
+### Breaking changes
+
+1. **Default channels changed** from `['email', 'whatsapp', 'sms', 'inapp']` to `['email', 'inapp']`. If you relied on the old defaults, explicitly pass the channels you need.
+
+2. **Fail-fast validation** is now run at plugin creation time. Previously, some invalid configurations (like enabling SMS without a provider) would only fail at runtime. Now they throw immediately with a `payload-notifications:` prefixed message.
+
+3. **In-app notification content** now stores resolved template `title` and `message` instead of generic placeholders. If you parse stored notification text, update any expectations.
+
+### Migration steps
+
 If you currently send notifications directly from hooks or services, migrate by:
 1. Emitting domain events into the plugin job pipeline.
 2. Moving per-channel message text into the template registry.

@@ -61,6 +61,15 @@ export const normalizePluginOptions = (
     }
   }
 
+  if (channels.includes('whatsapp') && options.providers?.whatsapp?.provider === 'meta') {
+    const metaConfig = options.providers.whatsapp
+    if (!metaConfig.accessToken || !metaConfig.phoneNumberId) {
+      throw new Error(
+        'payload-notifications: Meta WhatsApp Cloud API requires accessToken and phoneNumberId',
+      )
+    }
+  }
+
   if (channels.includes('whatsapp') && options.providers?.whatsapp?.provider === 'twilio') {
     const waConfig = options.providers.whatsapp
     if (!waConfig.accountSid || !waConfig.authToken || !waConfig.from) {

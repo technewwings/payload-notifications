@@ -59,6 +59,9 @@ export {
 export { evaluateNotificationPolicy } from './policy/evaluatePolicy'
 export { createSMSProvider } from './providers/sms'
 export { createWhatsAppProvider } from './providers/whatsapp'
+export { createMetaWhatsAppProvider } from './providers/meta-whatsapp'
+export { createTwilioWhatsAppProvider } from './providers/twilio-whatsapp'
+export { createTwilioSMSProvider } from './providers/twilio-sms'
 export type {
   DispatchFailureClassification,
   DispatchFailureInfo,

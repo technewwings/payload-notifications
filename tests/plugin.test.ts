@@ -22,8 +22,8 @@ describe('payload-notifications', () => {
     const collections = registerCollections([], options)
     const secondPass = registerCollections(collections, options)
 
-    expect(collections).toHaveLength(2)
-    expect(secondPass).toHaveLength(2)
+    expect(collections).toHaveLength(3)
+    expect(secondPass).toHaveLength(3)
   })
 
   it('respects custom collection slugs', () => {
@@ -75,7 +75,7 @@ describe('payload-notifications', () => {
     const plugin = notificationsPlugin()
     const config = plugin({ collections: [] })
 
-    expect(config.collections).toHaveLength(2)
+    expect(config.collections).toHaveLength(3)
     expect(config.jobs && 'tasks' in config.jobs ? config.jobs.tasks : []).toHaveLength(2)
   })
 
@@ -99,7 +99,7 @@ describe('payload-notifications', () => {
           {
             event: 'order.paid',
             channels: ['email'],
-            template: 'order-paid',
+            template: 'order.paid',
           },
         ],
       }),
@@ -116,12 +116,103 @@ describe('payload-notifications', () => {
       input: {
         userId: 'user_1',
         channel: 'email',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
     })
 
     expect(queue).toHaveBeenCalledTimes(1)
     expect(sendEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('registers live task handlers that work after onInit', async () => {
+    const queue = mock(async () => undefined)
+    const create = mock(async () => undefined)
+    const findByID = mock(async () => ({ id: 'user_1', email: 'demo@example.com' }))
+    const sendEmail = mock(async () => undefined)
+
+    const mockPayload = {
+      jobs: { queue },
+      create,
+      findByID,
+      sendEmail,
+    }
+
+    const plugin = notificationsPlugin({
+      rules: [
+        {
+          event: 'order.paid',
+          channels: ['email'],
+          template: 'order.paid',
+        },
+      ],
+    })
+
+    const config = plugin({ collections: [] })
+    const tasks = config.jobs && 'tasks' in config.jobs ? (config.jobs.tasks as any[]) : []
+
+    const processEventTask = tasks.find((t: any) => t.slug === 'notification:process-event')
+    const sendTask = tasks.find((t: any) => t.slug === 'notification:send')
+
+    expect(processEventTask).toBeTruthy()
+    expect(sendTask).toBeTruthy()
+
+    // Simulate Payload calling onInit
+    await config.onInit?.(mockPayload as never)
+
+    // Task handlers should now work without the deferred error
+    await processEventTask.handler({
+      input: { name: 'order.paid', userId: 'user_1' },
+    })
+
+    expect(queue).toHaveBeenCalledTimes(1)
+
+    await sendTask.handler({
+      input: {
+        userId: 'user_1',
+        channel: 'email',
+        template: 'order.paid',
+        event: 'order.paid',
+      },
+    })
+
+    expect(sendEmail).toHaveBeenCalledTimes(1)
+  })
+
+  it('task handlers fail gracefully before onInit', async () => {
+    const plugin = notificationsPlugin()
+    const config = plugin({ collections: [] })
+    const tasks = config.jobs && 'tasks' in config.jobs ? (config.jobs.tasks as any[]) : []
+
+    const processEventTask = tasks.find((t: any) => t.slug === 'notification:process-event')
+
+    // Call handler before onInit — should return failed state, not throw
+    const result = await processEventTask.handler({
+      input: { name: 'order.paid', userId: 'user_1' },
+    })
+
+    expect(result.state).toBe('failed')
+    expect(result.errorMessage).toContain('cannot run before plugin initialization')
+  })
+
+  it('preserves existing onInit hooks', async () => {
+    const existingOnInit = mock(async () => undefined)
+
+    const plugin = notificationsPlugin()
+    const config = plugin({
+      collections: [],
+      onInit: existingOnInit,
+    })
+
+    await config.onInit?.({} as never)
+    expect(existingOnInit).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls validateNormalizedOptions during plugin creation', () => {
+    expect(() =>
+      notificationsPlugin({
+        channels: [],
+      }),
+    ).toThrow('payload-notifications: at least one channel must be enabled')
   })
 })

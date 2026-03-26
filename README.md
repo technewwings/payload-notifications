@@ -1,393 +1,305 @@
 # @wtree/payload-notifications
 
-[![NPM Version](https://img.shields.io/npm/v/@wtree/payload-notifications?style=flat-square)](https://npmjs.com/package/@wtree/payload-notifications)
-[![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](./LICENSE)
-[![Node Version](https://img.shields.io/node/v/@wtree/payload-notifications?style=flat-square)](https://nodejs.org)
+Production-ready notifications plugin for Payload CMS with an event-driven, multi-channel architecture for email, WhatsApp, SMS, and in-app delivery.
 
-Production-ready notifications plugin for **Payload CMS** with a **multi-channel**, **event-driven**, and **provider-agnostic** architecture.
-
----
-
-## Overview
-
-This plugin is designed to unify transactional and future marketing notifications across multiple channels:
-
-- Email
-- WhatsApp
-- SMS
-- In-app notifications
-- Future channels like push and Telegram
-
-It is built to reuse native Payload capabilities wherever possible:
-
-- Payload plugin system
-- Payload Jobs queue
-- Payload email support
-- Existing app auth/user model
-- React Email templates
-
----
-
-## Goals
-
-- Centralize notification delivery behind one plugin
-- Support multi-channel routing per event
-- Keep providers swappable and future-proof
-- Persist in-app notifications and delivery logs
-- Respect user preferences and consent settings
-- Make the plugin safe for high-volume ecommerce workloads
-
----
-
-## Architecture
-
-### Event-driven pipeline
-
-The plugin follows a decoupled notification pipeline:
-
-1. Your app emits a notification event such as `order.paid` or `auth.resetPassword`
-2. The plugin resolves matching notification rules
-3. The plugin queues one job per target channel
-4. Channel-specific workers send or persist the notification
-5. Results are recorded in delivery logs
-
-### Core components
-
-- Event producers: order hooks, auth hooks, custom service calls
-- Dispatcher: resolves routing rules and enqueues work
-- Jobs queue: handles backpressure and async processing
-- Channel handlers: email, WhatsApp, SMS, in-app
-- Collections: `notifications`, `notification-logs`, future `campaigns`
-- Preference layer: checks opt-in/opt-out state before delivery
-
----
+## Features
+- Event-to-rule notification dispatch through Payload jobs
+- Channel implementations for email, WhatsApp, SMS, and in-app notifications
+- **Real provider integrations**: Meta WhatsApp Cloud API, Twilio SMS, and Twilio WhatsApp
+- Delivery log persistence and in-app notification storage with resolved template content
+- Template registry and resolution utilities with starter transactional templates
+- Preference mapping, consent enforcement, and custom policy hooks
+- Reliability helpers for idempotency, retry classification, retry-safe dispatch behavior, and observability hooks
+- Fail-fast configuration validation with clear error messages
+- Bun-based test suite, contributor guidance, CI expectations, and release-readiness docs
 
 ## Installation
-
-```bash
-npm install @wtree/payload-notifications
-```
-
-or
-
 ```bash
 bun add @wtree/payload-notifications
 ```
 
----
-
 ## Quick start
-
 ```ts
-import { buildConfig } from 'payload'
 import { notificationsPlugin } from '@wtree/payload-notifications'
 
 export default buildConfig({
   plugins: [
     notificationsPlugin({
-      enabled: true,
-      channels: ['email', 'whatsapp', 'inapp'],
+      channels: ['email', 'inapp'],
       providers: {
         email: {
-          defaultFromName: 'My Shop',
-          defaultFromAddress: 'orders@shop.com',
+          defaultFromAddress: 'noreply@example.com',
         },
-        whatsapp: {
-          provider: 'twilio',
-          from: 'whatsapp:+14155238886',
-          accountSid: process.env.TWILIO_ACCOUNT_SID,
-          authToken: process.env.TWILIO_AUTH_TOKEN,
-        },
-      },
-      templates: {
-        email: './src/templates/email',
-        whatsapp: './src/templates/whatsapp',
       },
       rules: [
         {
           event: 'order.paid',
           channels: ['email', 'inapp'],
-          template: 'order-paid',
+          template: 'order.paid',
         },
       ],
+      observability: {
+        onDispatch: async (event) => {
+          console.info(event)
+        },
+      },
     }),
   ],
 })
 ```
 
----
+## Configuration
+### Channels
 
-## Plugin config
+Default channels: `['email', 'inapp']`. These work out of the box with Payload's built-in email adapter and the notifications collection.
 
-```ts
-export type NotificationChannel = 'email' | 'whatsapp' | 'sms' | 'inapp' | 'push'
-
-export type NotificationRule = {
-  event: string
-  channels: NotificationChannel[]
-  template: string
-  condition?: (payload: Record<string, unknown>) => boolean | Promise<boolean>
-}
-
-export type NotificationsPluginOptions = {
-  enabled?: boolean
-  channels?: NotificationChannel[]
-  userCollectionSlug?: string
-  collections?: {
-    notifications?: string
-    logs?: string
-  }
-  templates?: {
-    email?: string
-    whatsapp?: string
-    sms?: string
-  }
-  providers?: {
-    email?: {
-      adapter?: unknown
-      defaultFromName?: string
-      defaultFromAddress?: string
-    }
-    whatsapp?: {
-      provider?: 'twilio' | 'meta'
-      accountSid?: string
-      authToken?: string
-      from?: string
-      accessToken?: string
-      phoneNumberId?: string
-    }
-    sms?: {
-      provider?: 'twilio'
-      accountSid?: string
-      authToken?: string
-      from?: string
-    }
-  }
-  rules?: NotificationRule[]
-}
-```
-
----
-
-## Collections
-
-### Notifications
-
-The `notifications` collection stores in-app inbox items for users.
-
-Suggested fields:
-
-- `title`
-- `message`
-- `recipient`
-- `isRead`
-- `readAt`
-- `meta`
-
-### Notification logs
-
-The `notification-logs` collection stores one document per delivery attempt.
-
-Suggested fields:
-
-- `user`
-- `channel`
-- `status`
-- `template`
-- `error`
-- `providerResponse`
-- `event`
-- `createdAt`
-
----
-
-## Event model
+To enable SMS or WhatsApp, you must explicitly add them and provide provider credentials:
 
 ```ts
-export type NotificationEvent = {
-  name: string
-  userId?: string
-  payload?: Record<string, unknown>
-}
-```
-
-Events can be emitted manually from services or through collection hooks.
-
-Example:
-
-```ts
-await req.payload.jobs.queue({
-  task: 'notification:process-event',
-  input: {
-    name: 'order.paid',
-    userId: doc.customerId,
-    payload: {
-      orderId: doc.id,
-      total: doc.total,
+notificationsPlugin({
+  channels: ['email', 'sms', 'inapp'],
+  providers: {
+    sms: {
+      provider: 'twilio',
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      from: process.env.TWILIO_SMS_FROM,
     },
   },
 })
 ```
 
----
+Available channels:
+- `email` — via Payload CMS built-in email
+- `whatsapp` — via Meta Cloud API or Twilio
+- `sms` — via Twilio
+- `inapp` — stored in the notifications collection
 
-## Jobs
+### Jobs processing
 
-### Process event
+The plugin registers two Payload job tasks automatically:
 
-The `notification:process-event` task:
+- `notification:process-event` — routes events to matching rules and queues per-channel sends
+- `notification:send` — dispatches individual notifications to channels
 
-- resolves matching rules
-- evaluates optional conditions
-- checks user preferences
-- queues one `notification:send` job per channel
+Task handlers are wired up via the plugin's `onInit` hook and work out of the box. No host-app overrides are required.
 
-### Send notification
+**Serverless environments:** Payload's job runner processes queued tasks. In serverless deployments (Vercel, AWS Lambda), you may need to configure an external job runner or use Payload's `autoRunJobs` option to ensure background tasks execute. See Payload's [jobs documentation](https://payloadcms.com/docs/jobs-queue/overview) for platform-specific guidance.
 
-The `notification:send` task:
+## Supported providers
 
-- loads the user and channel context
-- renders the correct template
-- sends or persists the notification
-- writes a delivery log entry
-- stores error details for retries and debugging
+### Meta WhatsApp Cloud API
 
----
+Send WhatsApp messages through the [Meta Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api). This is the recommended approach for WhatsApp — it uses Meta's official API directly without a third-party intermediary.
 
-## Channels
+**Prerequisites:**
+1. A [Meta Business account](https://business.facebook.com/) with a verified WhatsApp Business Profile.
+2. A registered WhatsApp Business phone number and its Phone Number ID (found in the Meta App Dashboard under WhatsApp > API Setup).
+3. A permanent System User access token with the `whatsapp_business_messaging` permission (or a temporary token for testing).
 
-### Email
-
-- Uses the existing Payload email adapter by default
-- Supports adapter override inside plugin config
-- Renders templates from React Email-compatible sources
-
-### WhatsApp
-
-- Uses a provider abstraction so Twilio or Meta can be swapped later
-- Sends templated text or structured provider payloads
-
-### SMS
-
-- Shares the same provider abstraction pattern as WhatsApp
-- Designed for OTPs, alerts, and transactional updates
-
-### In-app
-
-- Writes directly into the `notifications` collection
-- Enables inbox UI, unread counts, and later mobile support
-
----
-
-## Project structure
-
-```text
-src/
-  plugin.ts
-  index.ts
-  types.ts
-  collections/
-    Notifications.ts
-    NotificationLogs.ts
-  jobs/
-    processEvent.ts
-    sendNotification.ts
-  channels/
-    email.ts
-    whatsapp.ts
-    sms.ts
-    inapp.ts
-  providers/
-    email.ts
-    twilio.ts
-  templates/
-    email/
-    whatsapp/
+**Configuration:**
+```ts
+notificationsPlugin({
+  channels: ['whatsapp'],
+  providers: {
+    whatsapp: {
+      provider: 'meta',
+      accessToken: process.env.META_WHATSAPP_ACCESS_TOKEN,
+      phoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID,
+    },
+  },
+})
 ```
 
----
+**Environment variables:**
+| Variable | Description |
+|---|---|
+| `META_WHATSAPP_ACCESS_TOKEN` | System User access token with `whatsapp_business_messaging` permission |
+| `META_WHATSAPP_PHONE_NUMBER_ID` | Phone Number ID from the Meta App Dashboard |
 
-## Testing
+**Limitations:**
+- Only text messages are supported in this release. Template messages, media, interactive buttons, and list messages are not yet supported.
+- The Meta Cloud API has rate limits that vary by tier. See [Meta's throughput documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/overview#throughput).
+- Messages to users must be initiated within 24 hours of the user's last message, or you must use a pre-approved message template (Meta policy).
+- The access token must be kept secure. Use environment variables, never hardcode tokens.
 
-The plugin uses `bun test` for unit and integration-friendly tests.
+### Twilio SMS
 
-Recommended coverage areas:
+Send SMS messages through [Twilio's Programmable Messaging API](https://www.twilio.com/docs/messaging).
 
-- rule matching
-- job queueing behavior
-- preference filtering
-- provider dispatch
-- in-app persistence
-- failure logging and retry-safe behavior
+**Configuration:**
+```ts
+notificationsPlugin({
+  channels: ['sms'],
+  providers: {
+    sms: {
+      provider: 'twilio',
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      from: process.env.TWILIO_SMS_FROM,
+    },
+  },
+})
+```
 
-Run:
+**Environment variables:**
+| Variable | Description |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID (starts with `AC`) |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token |
+| `TWILIO_SMS_FROM` | Sender phone number in E.164 format (e.g. `+15551234567`) |
 
+### Twilio WhatsApp
+
+Send WhatsApp messages through [Twilio's WhatsApp API](https://www.twilio.com/docs/whatsapp).
+
+**Configuration:**
+```ts
+notificationsPlugin({
+  channels: ['whatsapp'],
+  providers: {
+    whatsapp: {
+      provider: 'twilio',
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      from: process.env.TWILIO_WHATSAPP_FROM,
+    },
+  },
+})
+```
+
+**Environment variables:**
+| Variable | Description |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token |
+| `TWILIO_WHATSAPP_FROM` | Twilio WhatsApp sender number with `whatsapp:` prefix (e.g. `whatsapp:+15551234567`) |
+
+### Email (built-in)
+
+Email uses Payload CMS's built-in email system. No external provider is needed — configure your SMTP/transport in the Payload config as usual.
+
+```ts
+notificationsPlugin({
+  channels: ['email'],
+  providers: {
+    email: {
+      defaultFromAddress: 'noreply@example.com',
+      defaultFromName: 'My App',
+    },
+  },
+})
+```
+
+### In-App (built-in)
+
+In-app notifications are stored in the `notifications` collection and require no external provider.
+
+### Template registry
+Templates resolve by event key and channel, and can be overridden without modifying core internals. In-app notifications persist the resolved and token-replaced `title` and `body` from the template definition.
+
+```ts
+const config = {
+  templates: {
+    registry: {
+      'order.shipped': {
+        email: {
+          subject: 'Order {{ payload.orderId }} shipped',
+          body: 'Tracking: {{ payload.trackingNumber }}',
+        },
+        inapp: {
+          title: 'Order shipped',
+          body: 'Order {{ payload.orderId }} has shipped.',
+        },
+        whatsapp: 'Order {{ payload.orderId }} shipped. Tracking {{ payload.trackingNumber }}.',
+      },
+    },
+  },
+}
+```
+
+Supported tokens: `{{ event }}`, `{{ userId }}`, `{{ payload.key }}` (supports dot-notation for nested values).
+
+### Preferences, policy, and observability
+```ts
+const config = {
+  preferences: {
+    fields: {
+      channels: 'notificationPreferences.channels',
+      marketingConsent: 'notificationPreferences.marketing',
+    },
+  },
+  policy: {
+    canSend: ({ channel, classification, user }) => ({
+      allow: !(channel === 'sms' && classification === 'marketing' && user.plan === 'free'),
+      reason: 'SMS marketing disabled for free plan',
+    }),
+  },
+  observability: {
+    onDispatch: async (event) => {
+      console.log(event.type, event.status, event.fingerprint)
+    },
+  },
+}
+```
+
+## Provider configuration reference
+
+| Provider | Channel | Required fields |
+|---|---|---|
+| `meta` | `whatsapp` | `accessToken`, `phoneNumberId` |
+| `twilio` | `whatsapp` | `accountSid`, `authToken`, `from` |
+| `twilio` | `sms` | `accountSid`, `authToken`, `from` |
+
+## Reliability helpers
+The package exposes helpers to support retry-safe delivery and structured observability.
+
+- `buildDeliveryFingerprint(input)` creates a deterministic deduplication key.
+- `classifyDispatchFailure(error)` marks failures as `retriable` or `terminal`.
+- `createObservabilityEvent(input)` shapes structured monitoring payloads.
+- The send flow blocks duplicate deliveries from already-completed fingerprints.
+- Retriable failures are re-queued up to three attempts.
+
+## Testing and CI
 ```bash
 bun test
-bun test --watch
-bun test --coverage
+bun run check
 ```
 
----
+See `docs/testing-strategy.md` for coverage expectations and CI guidance.
 
-## Linting and formatting
+## Common flows
+Starter templates are included for:
+- `order.paid`
+- `order.shipped`
+- `auth.magic-link`
 
-```bash
-bun run lint
-bun run lint:fix
-bun run format
-bun run format:check
-```
+## SMS and WhatsApp providers
 
----
+SMS and WhatsApp channels currently use mock provider adapters that return deterministic message IDs. Real Twilio and Meta integrations are planned for a follow-up release. The adapter pattern (`createSMSProvider`, `createWhatsAppProvider`) is ready for drop-in replacement.
 
-## Migration plan
+## Migration from 0.1.x
 
-### Phase 1
+### Breaking changes
 
-Start with one transactional event such as `order.paid` using email only.
+1. **Default channels changed** from `['email', 'whatsapp', 'sms', 'inapp']` to `['email', 'inapp']`. If you relied on the old defaults, explicitly pass the channels you need.
 
-### Phase 2
+2. **Fail-fast validation** is now run at plugin creation time. Previously, some invalid configurations (like enabling SMS without a provider) would only fail at runtime. Now they throw immediately with a `payload-notifications:` prefixed message.
 
-Replace direct app-level `sendEmail` calls with notification events.
+3. **In-app notification content** now stores resolved template `title` and `message` instead of generic placeholders. If you parse stored notification text, update any expectations.
 
-### Phase 3
+### Migration steps
 
-Enable WhatsApp and SMS providers for selected flows.
+If you currently send notifications directly from hooks or services, migrate by:
+1. Emitting domain events into the plugin job pipeline.
+2. Moving per-channel message text into the template registry.
+3. Applying preference and policy checks centrally instead of inline.
+4. Using logs and in-app collections for auditability.
+5. Attaching an observability hook for metrics or external monitoring.
 
-### Phase 4
-
-Enable in-app notifications for account alerts and order updates.
-
-### Phase 5
-
-Add campaign and drip support on top of the same event, template, and log infrastructure.
-
----
-
-## Roadmap
-
-- Admin UI for rule management
-- Campaigns and audience segments
-- Retry policies and dead-letter workflow
-- Push notification channel
-- Per-tenant/provider configuration
-- Delivery analytics dashboard
-
----
-
-## Compatibility
-
-See [COMPATIBILITY.md](./COMPATIBILITY.md).
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-## Changelog
-
-See [CHANGELOG.md](./CHANGELOG.md).
-
-## License
-
-MIT
+## Release checklist
+- Run tests and fix regressions.
+- Verify provider configuration and published exports.
+- Review README and examples.
+- Confirm release notes and version bump.
+- Validate package contents before publishing.

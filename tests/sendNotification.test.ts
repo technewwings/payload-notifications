@@ -11,7 +11,7 @@ describe('sendNotification', () => {
     const input = assertNotificationSendInput({
       userId: 'user_1',
       channel: 'email',
-      template: 'order-paid',
+      template: 'order.paid',
       event: 'order.paid',
     })
 
@@ -31,7 +31,7 @@ describe('sendNotification', () => {
       input: {
         userId: 'user_1',
         channel: 'email',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
     })
@@ -54,7 +54,7 @@ describe('sendNotification', () => {
       input: {
         userId: 'user_1',
         channel: 'email',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
       options: normalizePluginOptions(),
@@ -67,8 +67,10 @@ describe('sendNotification', () => {
 
   it('stores in-app notifications and logs them', async () => {
     const create = mock(async () => undefined)
+    const findByID = mock(async () => ({ id: 'user_1', email: 'demo@example.com' }))
     const payload = {
       create,
+      findByID,
     }
 
     const result = await sendNotification({
@@ -76,7 +78,7 @@ describe('sendNotification', () => {
       input: {
         userId: 'user_1',
         channel: 'inapp',
-        template: 'order-paid',
+        template: 'order.paid',
         event: 'order.paid',
       },
       options: normalizePluginOptions(),
@@ -84,5 +86,100 @@ describe('sendNotification', () => {
 
     expect(result?.status).toBe('stored')
     expect(create).toHaveBeenCalledTimes(2)
+  })
+
+  it('persists resolved template title and message for in-app notifications', async () => {
+    const createCalls: any[] = []
+    const create = mock(async (args: any) => {
+      createCalls.push(args)
+      return undefined
+    })
+    const findByID = mock(async () => ({ id: 'user_1' }))
+    const payload = {
+      create,
+      findByID,
+    }
+
+    await sendNotification({
+      payload: payload as never,
+      input: {
+        userId: 'user_1',
+        channel: 'inapp',
+        template: 'order.paid',
+        event: 'order.paid',
+        eventPayload: { orderId: 'ORD-123' },
+      },
+      options: normalizePluginOptions(),
+    })
+
+    // First create call is the notification record
+    const notifData = createCalls[0]?.data
+    expect(notifData.title).toBe('Order paid')
+    expect(notifData.message).toBe('Order ORD-123 is now marked as paid.')
+  })
+
+  it('persists resolved template with token replacement for in-app', async () => {
+    const createCalls: any[] = []
+    const create = mock(async (args: any) => {
+      createCalls.push(args)
+      return undefined
+    })
+    const findByID = mock(async () => ({ id: 'user_1' }))
+    const payload = {
+      create,
+      findByID,
+    }
+
+    await sendNotification({
+      payload: payload as never,
+      input: {
+        userId: 'user_1',
+        channel: 'inapp',
+        template: 'order.shipped',
+        event: 'order.shipped',
+        eventPayload: { orderId: 'ORD-456' },
+      },
+      options: normalizePluginOptions(),
+    })
+
+    const notifData = createCalls[0]?.data
+    expect(notifData.title).toBe('Order shipped')
+    expect(notifData.message).toBe('Order ORD-456 has shipped.')
+  })
+
+  it('falls back to generic title when template has no title field', async () => {
+    const createCalls: any[] = []
+    const create = mock(async (args: any) => {
+      createCalls.push(args)
+      return undefined
+    })
+    const findByID = mock(async () => ({ id: 'user_1' }))
+    const payload = {
+      create,
+      findByID,
+    }
+
+    await sendNotification({
+      payload: payload as never,
+      input: {
+        userId: 'user_1',
+        channel: 'inapp',
+        template: 'custom.event',
+        event: 'custom.event',
+      },
+      options: normalizePluginOptions({
+        templates: {
+          registry: {
+            'custom.event': {
+              inapp: 'Simple body-only template for {{ event }}',
+            },
+          },
+        },
+      }),
+    })
+
+    const notifData = createCalls[0]?.data
+    expect(notifData.title).toBe('Notification: custom.event')
+    expect(notifData.message).toBe('Simple body-only template for custom.event')
   })
 })

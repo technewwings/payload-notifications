@@ -5,7 +5,7 @@ import type {
   NotificationQueueTask,
   NotificationsPluginOptions,
 } from './types'
-import type { TaskConfig, TaskHandler, TaskHandlerArgs, TaskHandlerResult } from 'payload'
+import type { TaskConfig, TaskHandler, TaskHandlerResult } from 'payload'
 import {
   NotificationsCollection,
   type NotificationsCollectionOverrides,
@@ -14,15 +14,17 @@ import {
   NotificationLogsCollection,
   type NotificationLogsCollectionOverrides,
 } from './collections/NotificationLogs'
-import { normalizePluginOptions } from './config/normalizePluginOptions'
+import {
+  NotificationTemplatesCollection,
+  type NotificationTemplatesCollectionOverrides,
+} from './collections/NotificationTemplates'
+import { normalizePluginOptions, validateNormalizedOptions } from './config/normalizePluginOptions'
 import { assertNotificationEvent, processEvent } from './jobs/processEvent'
 import { assertNotificationSendInput, sendNotification } from './jobs/sendNotification'
 
 const hasCollectionSlug = (collections: CollectionConfig[] = [], slug: string): boolean => {
   return collections.some((collection) => collection.slug === slug)
 }
-
-type RegisteredTask = Pick<TaskConfig<any>, 'slug' | 'handler'>
 
 const getExistingTaskSlugs = (config: Config): string[] => {
   const jobsConfig = config.jobs
@@ -35,18 +37,48 @@ const getExistingTaskSlugs = (config: Config): string[] => {
     .filter(Boolean)
 }
 
-const createDeferredTaskHandler = (taskSlug: string): TaskHandler<any> => {
-  return async (args: TaskHandlerArgs<any>) => {
-    return {
-      state: 'failed',
-      errorMessage: `payload-notifications: task ${taskSlug} must be executed through registered plugin runtime`,
-    } as TaskHandlerResult<any>
+/**
+ * Holds a mutable reference that is populated by onInit once the Payload
+ * instance is available. Task handlers close over this so they work out of
+ * the box without host-app wiring.
+ */
+type RuntimeRef = {
+  payload: Payload | null
+  options: NormalizedNotificationsPluginOptions
+}
+
+const createLiveTaskHandler = (
+  taskSlug: 'notification:process-event' | 'notification:send',
+  runtime: RuntimeRef,
+): TaskHandler<any> => {
+  return async ({ input }: { input?: unknown }) => {
+    if (!runtime.payload) {
+      return {
+        state: 'failed',
+        errorMessage: `payload-notifications: task ${taskSlug} cannot run before plugin initialization`,
+      } as TaskHandlerResult<any>
+    }
+
+    if (taskSlug === 'notification:process-event') {
+      const event = assertNotificationEvent(input)
+      await processEvent({ payload: runtime.payload, event, options: runtime.options })
+      return { output: {} } as TaskHandlerResult<any>
+    }
+
+    const sendInput = assertNotificationSendInput(input)
+    const result = await sendNotification({
+      payload: runtime.payload,
+      input: sendInput,
+      options: runtime.options,
+    })
+    return { output: result ?? {} } as TaskHandlerResult<any>
   }
 }
 
 const registerTaskDefinitions = (
   config: Config,
   tasks: NotificationQueueTask[],
+  runtime: RuntimeRef,
 ): TaskConfig<any>[] => {
   const existing = new Set(getExistingTaskSlugs(config))
   const nextTasks: TaskConfig<any>[] =
@@ -59,7 +91,7 @@ const registerTaskDefinitions = (
 
     nextTasks.push({
       slug: task.slug,
-      handler: createDeferredTaskHandler(task.slug),
+      handler: createLiveTaskHandler(task.slug, runtime),
     } as TaskConfig<any>)
 
     existing.add(task.slug)
@@ -70,6 +102,9 @@ const registerTaskDefinitions = (
 
 export const notificationsPlugin = (options: NotificationsPluginOptions = {}) => {
   const normalizedOptions = normalizePluginOptions(options)
+  validateNormalizedOptions(normalizedOptions)
+
+  const runtime: RuntimeRef = { payload: null, options: normalizedOptions }
 
   return (config: Config): Config => {
     if (normalizedOptions.enabled === false) {
@@ -78,10 +113,13 @@ export const notificationsPlugin = (options: NotificationsPluginOptions = {}) =>
 
     const collections = [...(config.collections || [])]
     const withCollections = registerCollections(collections, normalizedOptions)
-    const tasks = registerTaskDefinitions(config, [
-      { slug: 'notification:process-event' },
-      { slug: 'notification:send' },
-    ])
+    const tasks = registerTaskDefinitions(
+      config,
+      [{ slug: 'notification:process-event' }, { slug: 'notification:send' }],
+      runtime,
+    )
+
+    const existingOnInit = config.onInit
 
     return {
       ...config,
@@ -89,6 +127,12 @@ export const notificationsPlugin = (options: NotificationsPluginOptions = {}) =>
       jobs: {
         ...config.jobs,
         tasks,
+      },
+      onInit: async (payload: Payload) => {
+        runtime.payload = payload
+        if (existingOnInit) {
+          await existingOnInit(payload)
+        }
       },
     }
   }
@@ -100,6 +144,7 @@ export const registerCollections = (
   overrides?: {
     notifications?: NotificationsCollectionOverrides
     logs?: NotificationLogsCollectionOverrides
+    templates?: NotificationTemplatesCollectionOverrides
   },
 ): CollectionConfig[] => {
   const next = [...collections]
@@ -124,10 +169,34 @@ export const registerCollections = (
     )
   }
 
+  if (!hasCollectionSlug(next, options.collections.templates)) {
+    next.push(
+      NotificationTemplatesCollection({
+        slug: options.collections.templates,
+        overrides: overrides?.templates,
+      }),
+    )
+  }
+
   return next
 }
 
-export const registerNotificationTasks = registerTaskDefinitions
+/**
+ * Public API for registering notification task definitions.
+ * Uses a standalone runtime ref — tasks registered this way will need
+ * `createTaskHandlers()` to execute. For automatic handler wiring,
+ * use `notificationsPlugin()` which sets up handlers via onInit.
+ */
+export const registerNotificationTasks = (
+  config: Config,
+  tasks: NotificationQueueTask[],
+): TaskConfig<any>[] => {
+  const standaloneRuntime: RuntimeRef = {
+    payload: null,
+    options: normalizePluginOptions(),
+  }
+  return registerTaskDefinitions(config, tasks, standaloneRuntime)
+}
 
 export const createTaskHandlers = (
   payload: Payload,

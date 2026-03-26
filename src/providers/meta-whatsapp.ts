@@ -67,8 +67,7 @@ export const createMetaWhatsAppProvider = (
       const data = (await response.json()) as MetaWhatsAppMessageResponse
 
       if (!response.ok || data.error) {
-        const errorMessage =
-          data.error?.message || `Meta WhatsApp API returned ${response.status}`
+        const errorMessage = data.error?.message || `Meta WhatsApp API returned ${response.status}`
         throw new Error(errorMessage)
       }
 

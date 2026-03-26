@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from 'bun:test'
+import { describe, expect, it, mock, afterEach } from 'bun:test'
 import { createMetaWhatsAppProvider } from '../src/providers/meta-whatsapp'
 import { createTwilioSMSProvider } from '../src/providers/twilio-sms'
 import { createTwilioWhatsAppProvider } from '../src/providers/twilio-whatsapp'
@@ -84,9 +84,7 @@ describe('Meta WhatsApp Cloud API provider', () => {
     ]
     expect(url).toContain('123456789/messages')
     expect(url).toContain('graph.facebook.com')
-    expect((init.headers as Record<string, string>).Authorization).toBe(
-      'Bearer test-access-token',
-    )
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer test-access-token')
     const body = JSON.parse(init.body as string)
     expect(body.messaging_product).toBe('whatsapp')
     expect(body.to).toBe('+15559876543')
@@ -132,9 +130,7 @@ describe('Meta WhatsApp Cloud API provider', () => {
     globalThis.fetch = createMockFetch({}, 500)
 
     const provider = createMetaWhatsAppProvider(metaOptions)
-    await expect(provider.send(sendInput)).rejects.toThrow(
-      'Meta WhatsApp API returned 500',
-    )
+    await expect(provider.send(sendInput)).rejects.toThrow('Meta WhatsApp API returned 500')
   })
 
   it('throws when accessToken is missing', () => {
@@ -254,9 +250,7 @@ describe('Twilio SMS provider', () => {
         sms: { provider: 'twilio' as const, accountSid: 'sid', authToken: 'token' },
       },
     }
-    expect(() => createTwilioSMSProvider(options)).toThrow(
-      'Twilio SMS requires providers.sms.from',
-    )
+    expect(() => createTwilioSMSProvider(options)).toThrow('Twilio SMS requires providers.sms.from')
   })
 
   it('encodes basic auth credentials correctly', async () => {
@@ -340,9 +334,7 @@ describe('Twilio WhatsApp provider', () => {
     )
 
     const provider = createTwilioWhatsAppProvider(twilioWhatsAppOptions)
-    await expect(provider.send(sendInput)).rejects.toThrow(
-      'Channel not enabled for WhatsApp',
-    )
+    await expect(provider.send(sendInput)).rejects.toThrow('Channel not enabled for WhatsApp')
   })
 
   it('throws when accountSid is missing', () => {
@@ -382,9 +374,7 @@ describe('WhatsApp provider factory', () => {
         whatsapp: { provider: 'vonage' as 'meta' },
       },
     }
-    expect(() => createWhatsAppProvider(options)).toThrow(
-      'Unsupported WhatsApp provider: vonage',
-    )
+    expect(() => createWhatsAppProvider(options)).toThrow('Unsupported WhatsApp provider: vonage')
   })
 
   it('throws when no provider is set', () => {

@@ -60,8 +60,7 @@ export const createTwilioSMSProvider = (
       const data = (await response.json()) as TwilioMessageResponse
 
       if (!response.ok || data.error_code) {
-        const errorMessage =
-          data.error_message || `Twilio API returned ${response.status}`
+        const errorMessage = data.error_message || `Twilio API returned ${response.status}`
         throw new Error(errorMessage)
       }
 

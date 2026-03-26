@@ -10,7 +10,5 @@ export const createSMSProvider = (
     return createTwilioSMSProvider(options)
   }
 
-  throw new Error(
-    `Unsupported SMS provider: ${String(provider)}. Supported providers: twilio`,
-  )
+  throw new Error(`Unsupported SMS provider: ${String(provider)}. Supported providers: twilio`)
 }

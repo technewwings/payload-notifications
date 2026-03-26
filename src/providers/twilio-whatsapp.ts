@@ -67,8 +67,7 @@ export const createTwilioWhatsAppProvider = (
       const data = (await response.json()) as TwilioMessageResponse
 
       if (!response.ok || data.error_code) {
-        const errorMessage =
-          data.error_message || `Twilio WhatsApp API returned ${response.status}`
+        const errorMessage = data.error_message || `Twilio WhatsApp API returned ${response.status}`
         throw new Error(errorMessage)
       }
 

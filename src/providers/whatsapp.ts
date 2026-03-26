@@ -1,29 +1,21 @@
-import type {
-  ChannelProviderResult,
-  NormalizedNotificationsPluginOptions,
-  WhatsAppProviderAdapter,
-  WhatsAppProviderSendInput,
-} from '../types'
-
-const createMessageId = (provider: string, channel: string, event: string): string => {
-  return `${provider}-${channel}-${event}-${Date.now()}`
-}
+import type { NormalizedNotificationsPluginOptions, WhatsAppProviderAdapter } from '../types'
+import { createMetaWhatsAppProvider } from './meta-whatsapp'
+import { createTwilioWhatsAppProvider } from './twilio-whatsapp'
 
 export const createWhatsAppProvider = (
   options: NormalizedNotificationsPluginOptions,
 ): WhatsAppProviderAdapter => {
-  return {
-    send: async (input: WhatsAppProviderSendInput): Promise<ChannelProviderResult> => {
-      const provider = options.providers.whatsapp?.provider || 'twilio'
+  const provider = options.providers.whatsapp?.provider
 
-      return {
-        provider,
-        messageId: createMessageId(provider, 'whatsapp', input.context.event),
-        response: {
-          to: input.to,
-          template: input.template,
-        },
-      }
-    },
+  if (provider === 'meta') {
+    return createMetaWhatsAppProvider(options)
   }
+
+  if (provider === 'twilio') {
+    return createTwilioWhatsAppProvider(options)
+  }
+
+  throw new Error(
+    `Unsupported WhatsApp provider: ${String(provider)}. Supported providers: meta, twilio`,
+  )
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock } from 'bun:test'
+import { describe, expect, it, mock, afterEach } from 'bun:test'
 import { sendEmailNotification } from '../src/channels/email'
 import { sendInAppNotification } from '../src/channels/inapp'
 import { sendSMSNotification } from '../src/channels/sms'
@@ -9,6 +9,20 @@ type MockPayload = {
   findByID?: ReturnType<typeof mock>
   sendEmail?: ReturnType<typeof mock>
   create: ReturnType<typeof mock>
+}
+
+const originalFetch = globalThis.fetch
+
+afterEach(() => {
+  globalThis.fetch = originalFetch
+})
+
+const createMockFetch = (responseBody: unknown, status = 200) => {
+  return mock(async () => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => responseBody,
+  })) as unknown as typeof fetch
 }
 
 const createMockPayload = (overrides: Partial<MockPayload> = {}) => {
@@ -121,6 +135,11 @@ describe('channel implementations', () => {
   })
 
   it('returns failed whatsapp result when provider send throws', async () => {
+    globalThis.fetch = createMockFetch(
+      { error: { message: 'Provider unavailable', type: 'ServerError', code: 500 } },
+      500,
+    )
+
     const payload = createMockPayload({
       findByID: mock(async () => ({ id: 'user_1', phone: '+15550000000' })),
       create: mock(async () => undefined),
@@ -131,14 +150,11 @@ describe('channel implementations', () => {
       providers: {
         whatsapp: {
           provider: 'meta',
+          accessToken: 'test-token',
+          phoneNumberId: '123456',
         },
       },
     })
-
-    const original = Date.now
-    Date.now = () => {
-      throw new Error('Provider unavailable')
-    }
 
     const result = await sendWhatsAppNotification({
       payload: payload as never,
@@ -151,14 +167,19 @@ describe('channel implementations', () => {
       options,
     })
 
-    Date.now = original
-
     expect(result.status).toBe('failed')
     expect(result.reason).toBe('Provider unavailable')
     expect(payload.create).toHaveBeenCalledTimes(1)
   })
 
   it('returns sent sms result with provider metadata', async () => {
+    globalThis.fetch = createMockFetch({
+      sid: 'SM12345',
+      status: 'queued',
+      to: '+15550000000',
+      from: '+15551111111',
+    })
+
     const payload = createMockPayload({
       findByID: mock(async () => ({ id: 'user_1', phone: '+15550000000' })),
       create: mock(async () => undefined),
@@ -214,15 +235,15 @@ describe('channel implementations', () => {
   })
 
   it('returns failed sms result when provider send throws', async () => {
+    globalThis.fetch = createMockFetch(
+      { error_code: 20003, error_message: 'SMS provider unavailable' },
+      503,
+    )
+
     const payload = createMockPayload({
       findByID: mock(async () => ({ id: 'user_1', phone: '+15550000000' })),
       create: mock(async () => undefined),
     })
-
-    const original = Date.now
-    Date.now = () => {
-      throw new Error('SMS provider unavailable')
-    }
 
     const result = await sendSMSNotification({
       payload: payload as never,
@@ -234,10 +255,16 @@ describe('channel implementations', () => {
       },
       options: normalizePluginOptions({
         channels: ['sms'],
+        providers: {
+          sms: {
+            provider: 'twilio',
+            accountSid: 'sid',
+            authToken: 'token',
+            from: '+15551111111',
+          },
+        },
       }),
     })
-
-    Date.now = original
 
     expect(result.status).toBe('failed')
     expect(result.reason).toBe('SMS provider unavailable')

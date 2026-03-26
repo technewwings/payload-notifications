@@ -33,6 +33,24 @@ export const normalizePluginOptions = (
     throw new Error('providers.whatsapp.provider is required')
   }
 
+  if (userProvidedChannels && channels.includes('whatsapp') && options.providers?.whatsapp) {
+    const whatsappConfig = options.providers.whatsapp
+    if (whatsappConfig.provider === 'meta') {
+      if (!whatsappConfig.accessToken || !whatsappConfig.phoneNumberId) {
+        throw new Error(
+          'Meta WhatsApp Cloud API requires providers.whatsapp.accessToken and providers.whatsapp.phoneNumberId',
+        )
+      }
+    }
+    if (whatsappConfig.provider === 'twilio') {
+      if (!whatsappConfig.accountSid || !whatsappConfig.authToken || !whatsappConfig.from) {
+        throw new Error(
+          'Twilio WhatsApp requires providers.whatsapp.accountSid, authToken, and from',
+        )
+      }
+    }
+  }
+
   if (
     userProvidedChannels &&
     channels.includes('sms') &&

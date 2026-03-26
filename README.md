@@ -5,6 +5,7 @@ Production-ready notifications plugin for Payload CMS with an event-driven, mult
 ## Features
 - Event-to-rule notification dispatch through Payload jobs
 - Channel implementations for email, WhatsApp, SMS, and in-app notifications
+- **Real provider integrations**: Meta WhatsApp Cloud API, Twilio SMS, and Twilio WhatsApp
 - Delivery log persistence and in-app notification storage
 - Template registry and resolution utilities with starter transactional templates
 - Preference mapping, consent enforcement, and custom policy hooks
@@ -52,12 +53,121 @@ export default notificationsPlugin({
 })
 ```
 
+## Supported providers
+
+### Meta WhatsApp Cloud API
+
+Send WhatsApp messages through the [Meta Cloud API](https://developers.facebook.com/docs/whatsapp/cloud-api). This is the recommended approach for WhatsApp — it uses Meta's official API directly without a third-party intermediary.
+
+**Prerequisites:**
+1. A [Meta Business account](https://business.facebook.com/) with a verified WhatsApp Business Profile.
+2. A registered WhatsApp Business phone number and its Phone Number ID (found in the Meta App Dashboard under WhatsApp > API Setup).
+3. A permanent System User access token with the `whatsapp_business_messaging` permission (or a temporary token for testing).
+
+**Configuration:**
+```ts
+notificationsPlugin({
+  channels: ['whatsapp'],
+  providers: {
+    whatsapp: {
+      provider: 'meta',
+      accessToken: process.env.META_WHATSAPP_ACCESS_TOKEN,
+      phoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID,
+    },
+  },
+})
+```
+
+**Environment variables:**
+| Variable | Description |
+|---|---|
+| `META_WHATSAPP_ACCESS_TOKEN` | System User access token with `whatsapp_business_messaging` permission |
+| `META_WHATSAPP_PHONE_NUMBER_ID` | Phone Number ID from the Meta App Dashboard |
+
+**Limitations:**
+- Only text messages are supported in this release. Template messages, media, interactive buttons, and list messages are not yet supported.
+- The Meta Cloud API has rate limits that vary by tier. See [Meta's throughput documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/overview#throughput).
+- Messages to users must be initiated within 24 hours of the user's last message, or you must use a pre-approved message template (Meta policy).
+- The access token must be kept secure. Use environment variables, never hardcode tokens.
+
+### Twilio SMS
+
+Send SMS messages through [Twilio's Programmable Messaging API](https://www.twilio.com/docs/messaging).
+
+**Configuration:**
+```ts
+notificationsPlugin({
+  channels: ['sms'],
+  providers: {
+    sms: {
+      provider: 'twilio',
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      from: process.env.TWILIO_SMS_FROM,
+    },
+  },
+})
+```
+
+**Environment variables:**
+| Variable | Description |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID (starts with `AC`) |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token |
+| `TWILIO_SMS_FROM` | Sender phone number in E.164 format (e.g. `+15551234567`) |
+
+### Twilio WhatsApp
+
+Send WhatsApp messages through [Twilio's WhatsApp API](https://www.twilio.com/docs/whatsapp).
+
+**Configuration:**
+```ts
+notificationsPlugin({
+  channels: ['whatsapp'],
+  providers: {
+    whatsapp: {
+      provider: 'twilio',
+      accountSid: process.env.TWILIO_ACCOUNT_SID,
+      authToken: process.env.TWILIO_AUTH_TOKEN,
+      from: process.env.TWILIO_WHATSAPP_FROM,
+    },
+  },
+})
+```
+
+**Environment variables:**
+| Variable | Description |
+|---|---|
+| `TWILIO_ACCOUNT_SID` | Twilio Account SID |
+| `TWILIO_AUTH_TOKEN` | Twilio Auth Token |
+| `TWILIO_WHATSAPP_FROM` | Twilio WhatsApp sender number with `whatsapp:` prefix (e.g. `whatsapp:+15551234567`) |
+
+### Email (built-in)
+
+Email uses Payload CMS's built-in email system. No external provider is needed — configure your SMTP/transport in the Payload config as usual.
+
+```ts
+notificationsPlugin({
+  channels: ['email'],
+  providers: {
+    email: {
+      defaultFromAddress: 'noreply@example.com',
+      defaultFromName: 'My App',
+    },
+  },
+})
+```
+
+### In-App (built-in)
+
+In-app notifications are stored in the `notifications` collection and require no external provider.
+
 ## Configuration
 ### Channels
-- `email`
-- `whatsapp`
-- `sms`
-- `inapp`
+- `email` — via Payload CMS built-in email
+- `whatsapp` — via Meta Cloud API or Twilio
+- `sms` — via Twilio
+- `inapp` — stored in the notifications collection
 
 ### Template registry
 Templates resolve by event key and channel, and can be overridden without modifying core internals.
@@ -100,6 +210,14 @@ const config = {
   },
 }
 ```
+
+## Provider configuration reference
+
+| Provider | Channel | Required fields |
+|---|---|---|
+| `meta` | `whatsapp` | `accessToken`, `phoneNumberId` |
+| `twilio` | `whatsapp` | `accountSid`, `authToken`, `from` |
+| `twilio` | `sms` | `accountSid`, `authToken`, `from` |
 
 ## Reliability helpers
 The package exposes helpers to support retry-safe delivery and structured observability.

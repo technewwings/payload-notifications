@@ -13,7 +13,7 @@ export const resolveRulesForEvent = (
   eventName: string,
   rules: NotificationRule[] = [],
 ): NotificationRule[] => {
-  return rules.filter((rule) => rule.event === eventName)
+  return rules.filter((rule) => rule.event === eventName && rule.enabled !== false)
 }
 
 export const assertNotificationEvent = (value: unknown): NotificationEvent => {

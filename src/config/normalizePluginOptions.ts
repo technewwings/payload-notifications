@@ -29,10 +29,18 @@ export const normalizePluginOptions = (
 
   const notificationsSlug = options.collections?.notifications || 'notifications'
   const logsSlug = options.collections?.logs || 'notification-logs'
+  const templatesSlug = options.collections?.templates || 'notification-templates'
 
   if (notificationsSlug === logsSlug) {
     throw new Error(
       'payload-notifications: notifications and logs collections must use different slugs',
+    )
+  }
+
+  const allSlugs = [notificationsSlug, logsSlug, templatesSlug]
+  if (new Set(allSlugs).size !== allSlugs.length) {
+    throw new Error(
+      'payload-notifications: notifications, logs, and templates collections must use different slugs',
     )
   }
 
@@ -90,6 +98,7 @@ export const normalizePluginOptions = (
     collections: {
       notifications: notificationsSlug,
       logs: logsSlug,
+      templates: templatesSlug,
     },
     templates: {
       email: options.templates?.email,

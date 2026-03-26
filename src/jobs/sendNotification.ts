@@ -248,11 +248,12 @@ export const sendNotification = async ({
     return result
   }
 
-  const resolved = resolveTemplate({
+  const resolved = await resolveTemplate({
     event: validatedInput.event,
     channel: validatedInput.channel,
     templateKey: validatedInput.template,
     options,
+    payload,
   })
 
   let result: NotificationDispatchResult | void

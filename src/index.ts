@@ -25,12 +25,15 @@ export type {
   NotificationsPluginOptions,
   NotificationTemplateContext,
   NotificationTemplateDefinition,
+  NotificationTemplateRecord,
   NotificationTemplateRegistry,
   NotificationTemplateRenderer,
   NotificationTemplateResolution,
   NotificationTemplateResolver,
   NotificationTemplateSet,
+  NotificationTriggerDefinition,
   PreferenceFieldMapping,
+  RenderedTemplate,
   SMSProviderAdapter,
   SMSProviderConfig,
   SMSProviderSendInput,
@@ -45,6 +48,8 @@ export {
   buildProviderResponseField,
 } from './collections/NotificationLogs'
 export type { NotificationLogsCollectionOverrides } from './collections/NotificationLogs'
+export { NotificationTemplatesCollection } from './collections/NotificationTemplates'
+export type { NotificationTemplatesCollectionOverrides } from './collections/NotificationTemplates'
 export {
   assertNotificationEvent,
   emitNotificationEvent,
@@ -74,4 +79,11 @@ export {
 } from './reliability'
 export { buildCommonEventContext, buildTemplateContext, getContextValue } from './templates/context'
 export { renderTemplate } from './templates/render'
-export { resolveTemplate } from './templates/resolve'
+export { resolveTemplate, resolveTemplateSync } from './templates/resolve'
+export {
+  compile as compileTemplate,
+  render as renderCompiledTemplate,
+  renderTemplate as renderEngineTemplate,
+} from './templates/engine'
+export type { CompiledTemplate, CompileOptions, TemplateNode } from './templates/engine'
+export { defineTrigger } from './triggers'

@@ -14,6 +14,10 @@ import {
   NotificationLogsCollection,
   type NotificationLogsCollectionOverrides,
 } from './collections/NotificationLogs'
+import {
+  NotificationTemplatesCollection,
+  type NotificationTemplatesCollectionOverrides,
+} from './collections/NotificationTemplates'
 import { normalizePluginOptions, validateNormalizedOptions } from './config/normalizePluginOptions'
 import { assertNotificationEvent, processEvent } from './jobs/processEvent'
 import { assertNotificationSendInput, sendNotification } from './jobs/sendNotification'
@@ -140,6 +144,7 @@ export const registerCollections = (
   overrides?: {
     notifications?: NotificationsCollectionOverrides
     logs?: NotificationLogsCollectionOverrides
+    templates?: NotificationTemplatesCollectionOverrides
   },
 ): CollectionConfig[] => {
   const next = [...collections]
@@ -160,6 +165,15 @@ export const registerCollections = (
         userCollectionSlug: options.userCollectionSlug,
         slug: options.collections.logs,
         overrides: overrides?.logs,
+      }),
+    )
+  }
+
+  if (!hasCollectionSlug(next, options.collections.templates)) {
+    next.push(
+      NotificationTemplatesCollection({
+        slug: options.collections.templates,
+        overrides: overrides?.templates,
       }),
     )
   }

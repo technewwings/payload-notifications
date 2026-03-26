@@ -22,8 +22,8 @@ describe('payload-notifications', () => {
     const collections = registerCollections([], options)
     const secondPass = registerCollections(collections, options)
 
-    expect(collections).toHaveLength(2)
-    expect(secondPass).toHaveLength(2)
+    expect(collections).toHaveLength(3)
+    expect(secondPass).toHaveLength(3)
   })
 
   it('respects custom collection slugs', () => {
@@ -75,7 +75,7 @@ describe('payload-notifications', () => {
     const plugin = notificationsPlugin()
     const config = plugin({ collections: [] })
 
-    expect(config.collections).toHaveLength(2)
+    expect(config.collections).toHaveLength(3)
     expect(config.jobs && 'tasks' in config.jobs ? config.jobs.tasks : []).toHaveLength(2)
   })
 

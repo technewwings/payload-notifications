@@ -85,6 +85,20 @@ const baseFields = (userCollectionSlug: string): Field[] => [
     index: true,
   },
   {
+    name: 'templateSlug',
+    type: 'text',
+    index: true,
+  },
+  {
+    name: 'templateVersion',
+    type: 'number',
+    index: true,
+  },
+  {
+    name: 'renderDurationMs',
+    type: 'number',
+  },
+  {
     name: 'error',
     type: 'textarea',
   },

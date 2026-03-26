@@ -34,8 +34,12 @@ export type NotificationRule = {
   event: string
   channels: NotificationChannel[]
   template: string
+  enabled?: boolean
   condition?: (payload: NotificationEventPayload) => boolean | Promise<boolean>
+  templateOverrides?: Partial<Record<NotificationChannel, Partial<NotificationTemplateDefinition>>>
 }
+
+export type NotificationTriggerDefinition = NotificationRule
 
 export type PreferenceFieldMapping = {
   channels?: string
@@ -101,6 +105,44 @@ export type SMSProviderConfig = {
   from?: string
 }
 
+export type RenderedTemplate = {
+  subject?: string
+  htmlBody?: string
+  textBody?: string
+  body?: string
+  title?: string
+  hsmTemplateId?: string
+  hsmParams?: Record<string, string>
+  metadata?: {
+    smsSegments?: number
+    smsCharCount?: number
+    templateSlug?: string
+    templateVersion?: number
+    renderDurationMs?: number
+  }
+}
+
+export type NotificationTemplateRecord = {
+  id: string
+  name: string
+  slug: string
+  description?: string
+  channels: NotificationChannel[]
+  category: 'transactional' | 'marketing' | 'system'
+  status: 'draft' | 'active' | 'archived'
+  version: number
+  email?: { subject?: string; htmlBody?: string; textBody?: string }
+  sms?: { body?: string }
+  whatsapp?: { body?: string; hsmTemplateId?: string }
+  inapp?: { title?: string; body?: string }
+  variables?: Array<{
+    name: string
+    type: 'string' | 'number' | 'boolean' | 'date'
+    required: boolean
+    defaultValue?: string
+  }>
+}
+
 export type NotificationsPluginOptions = {
   enabled?: boolean
   channels?: NotificationChannel[]
@@ -108,6 +150,7 @@ export type NotificationsPluginOptions = {
   collections?: {
     notifications?: string
     logs?: string
+    templates?: string
   }
   templates?: {
     email?: string
@@ -141,6 +184,7 @@ export type NormalizedNotificationsPluginOptions = {
   collections: {
     notifications: string
     logs: string
+    templates: string
   }
   templates: {
     email?: string
@@ -215,6 +259,8 @@ export type NotificationTemplateResolution = {
   channel: NotificationChannel
   templateKey: string
   definition: NotificationTemplateDefinition
+  templateSlug?: string
+  templateVersion?: number
 }
 
 export type NotificationTemplateResolver = (input: {
